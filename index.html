@@ -126,6 +126,16 @@
         <div id="mediaMirror" class="media-mirror">
           <h4>Mirror Display</h4>
           <div id="mediaMirrorContent" class="mirror-content">Nothing displayed</div>
+          <div id="mediaPreviewRow" class="media-preview-row">
+            <button id="mediaPrevPreview" class="media-preview preview-prev" type="button" aria-label="Previous slide preview" disabled>
+              <div class="preview-label">Previous</div>
+              <div class="preview-content">No preview</div>
+            </button>
+            <button id="mediaNextPreview" class="media-preview preview-next" type="button" aria-label="Next slide preview" disabled>
+              <div class="preview-label">Next</div>
+              <div class="preview-content">No preview</div>
+            </button>
+          </div>
         </div>
         <div class="file-input-box">
           <input id="mediaFiles" type="file" accept="image/*,video/*,.pdf,application/pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple aria-describedby="mediaFileTypes">

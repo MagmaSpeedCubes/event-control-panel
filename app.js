@@ -53,9 +53,12 @@ const mediaPause = document.getElementById('mediaPause');
 const mediaPrev = document.getElementById('mediaPrev');
 const mediaNext = document.getElementById('mediaNext');
 const mediaNotes = document.getElementById('mediaNotes');
+const mediaMirror = document.getElementById('mediaMirror');
 const transitionTimeEl = document.getElementById('transitionTime');
 const openDisplay = document.getElementById('openDisplay');
 const mediaMirrorContent = document.getElementById('mediaMirrorContent');
+const mediaPrevPreview = document.getElementById('mediaPrevPreview');
+const mediaNextPreview = document.getElementById('mediaNextPreview');
 const statusEl = document.getElementById('status');
 const appBanner = document.getElementById('appBanner');
 
@@ -1424,6 +1427,9 @@ function openDisplayWindow(){
 }
 
 openDisplay.addEventListener('click', openDisplayWindow);
+mediaPrevPreview?.addEventListener('click', () => showMediaAt(Math.max(0, currentMediaIndex - 1)));
+mediaNextPreview?.addEventListener('click', () => showMediaAt(Math.min(media.length - 1, currentMediaIndex + 1)));
+window.addEventListener('resize', refreshMediaPreviewSize);
 
 window.addEventListener('message', e => {
   const msg = e.data;
@@ -1456,6 +1462,8 @@ function updateMediaUI(){
   lis.forEach(li=> li.classList.toggle('active', parseInt(li.dataset.index)===currentMediaIndex));
   updateMediaNotesUI();
   updateQueueProgress('media');
+  refreshMediaPreviewSize();
+  updateMediaPreviewCards();
 }
 
 function updateQueueProgress(type){
@@ -1508,12 +1516,16 @@ function updateMediaMirror(item){
   mediaMirrorContent.innerHTML = '';
   if (!item) {
     mediaMirrorContent.textContent = 'Nothing displayed';
+    refreshMediaPreviewSize();
     return;
   }
   if (item.type.startsWith('image/')) {
     const img = document.createElement('img');
     img.src = item.url;
     img.alt = item.name;
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'contain';
     mediaMirrorContent.appendChild(img);
   } else if (item.type.startsWith('video/')) {
     const video = document.createElement('video');
@@ -1522,11 +1534,72 @@ function updateMediaMirror(item){
     video.autoplay = true;
     video.muted = (mediaMuteAudio ? !!mediaMuteAudio.checked : true);
     video.loop = false;
+    video.style.width = '100%';
+    video.style.height = '100%';
+    video.style.objectFit = 'contain';
     video.addEventListener('timeupdate', ()=> updateQueueProgress('media'));
     mediaMirrorContent.appendChild(video);
   } else {
     mediaMirrorContent.textContent = item.name;
   }
+  refreshMediaPreviewSize();
+}
+
+function updateMediaPreviewCards(){
+  refreshMediaPreviewSize();
+  const prevItem = currentMediaIndex > 0 ? media[currentMediaIndex - 1] : null;
+  const nextItem = currentMediaIndex >= 0 && currentMediaIndex < media.length - 1 ? media[currentMediaIndex + 1] : null;
+  renderPreviewCard(mediaPrevPreview, prevItem, 'Previous');
+  renderPreviewCard(mediaNextPreview, nextItem, 'Next');
+}
+
+function refreshMediaPreviewSize(){
+  if (!mediaMirror || !mediaMirrorContent) return;
+  const rect = mediaMirrorContent.getBoundingClientRect();
+  mediaMirror.style.setProperty('--mirror-display-width', `${rect.width}px`);
+  mediaMirror.style.setProperty('--mirror-display-height', `${rect.height}px`);
+}
+
+function renderPreviewCard(button, item, label){
+  if (!button) return;
+  button.style.width = '';
+  button.style.height = '';
+  button.style.flex = '0 0 auto';
+  const rect = mediaMirrorContent ? mediaMirrorContent.getBoundingClientRect() : null;
+  if (rect && rect.width > 0 && rect.height > 0) {
+    const halfWidth = Math.max(0, Math.round(rect.width / 2 - 5));
+    const halfHeight = Math.max(0, Math.round(rect.height / 2 - 5));
+    button.style.width = `${halfWidth}px`;
+    button.style.height = `${halfHeight}px`;
+  }
+  button.disabled = !item;
+  const labelEl = button.querySelector('.preview-label');
+  const contentEl = button.querySelector('.preview-content');
+  if (labelEl) labelEl.textContent = label;
+  if (!contentEl) return;
+  contentEl.innerHTML = '';
+  if (!item){
+    contentEl.textContent = 'No preview';
+    return;
+  }
+  const thumbWrapper = document.createElement('div');
+  thumbWrapper.className = 'preview-thumb';
+  if (item.type.startsWith('image/')){
+    const img = document.createElement('img');
+    img.src = item.url;
+    img.alt = item.name || 'Image preview';
+    thumbWrapper.appendChild(img);
+  } else {
+    const icon = document.createElement('div');
+    icon.className = 'preview-icon';
+    icon.textContent = item.type.startsWith('video/') ? 'Video' : item.type === 'slide' ? 'Slide' : 'Media';
+    thumbWrapper.appendChild(icon);
+  }
+  const title = document.createElement('div');
+  title.className = 'preview-title';
+  title.textContent = item.name || 'Untitled';
+  contentEl.appendChild(thumbWrapper);
+  contentEl.appendChild(title);
 }
 
 function sendMediaControlToDisplay(command){
