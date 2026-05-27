@@ -34,6 +34,10 @@
         </div>
         <p class="note">Save and restore the current music, soundboard, media, and settings.</p>
       </section>
+      <section id="sessionNotesPanel" class="panel notes-card">
+        <h3>Notes</h3>
+        <textarea id="sessionNotes" rows="4" placeholder="Session notes"></textarea>
+      </section>
       <section id="intercom" class="panel intercom-card">
         <h3>Intercom</h3>
         <div class="row">
@@ -64,10 +68,10 @@
         <ul id="musicQueue"></ul>
         <div class="controls">
           <button id="musicPrev" class="action-button">Prev</button>
-          <button id="musicPlay" class="action-button">Play</button>
+          <button id="musicPlay" class="action-button">Autoplay</button>
           <button id="musicPause" class="action-button">Pause</button>
           <button id="musicNext" class="action-button">Next</button>
-          <label><input id="musicLoop" type="checkbox"> Loop</label>
+          <button id="musicLoop" class="action-button toggle-button" type="button" aria-pressed="false">Loop</button>
           <button id="musicShuffle" class="action-button">Shuffle</button>
         </div>
         <div class="file-input-box">
@@ -90,10 +94,14 @@
         <ul id="mediaQueue"></ul>
         <div class="controls">
           <button id="mediaPrev" class="action-button">Prev</button>
-          <button id="mediaPlay" class="action-button">Play</button>
+          <button id="mediaPlay" class="action-button">Autoplay</button>
           <button id="mediaPause" class="action-button">Pause</button>
           <button id="mediaNext" class="action-button">Next</button>
           <label>Transition (s): <input id="transitionTime" type="number" min="1" value="5"></label>
+        </div>
+        <div id="mediaNotesCard" class="media-notes-card">
+          <label for="mediaNotes">Selected slide notes</label>
+          <textarea id="mediaNotes" rows="4" placeholder="Select an image or slide to edit notes" disabled></textarea>
         </div>
         <div id="mediaMirror" class="media-mirror">
           <h4>Mirror Display</h4>

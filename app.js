@@ -35,12 +35,13 @@ const musicPlay = document.getElementById('musicPlay');
 const musicPause = document.getElementById('musicPause');
 const musicPrev = document.getElementById('musicPrev');
 const musicNext = document.getElementById('musicNext');
-const musicLoopEl = document.getElementById('musicLoop');
+const musicLoopButton = document.getElementById('musicLoop');
 const musicShuffleButton = document.getElementById('musicShuffle');
 const soundboardFiles = document.getElementById('soundboardFiles');
 const soundboardGrid = document.getElementById('soundboardGrid');
 const ecpExport = document.getElementById('ecpExport');
 const ecpImportFile = document.getElementById('ecpImportFile');
+const sessionNotes = document.getElementById('sessionNotes');
 
 const mediaFiles = document.getElementById('mediaFiles');
 const mediaQueue = document.getElementById('mediaQueue');
@@ -49,6 +50,7 @@ const mediaPlay = document.getElementById('mediaPlay');
 const mediaPause = document.getElementById('mediaPause');
 const mediaPrev = document.getElementById('mediaPrev');
 const mediaNext = document.getElementById('mediaNext');
+const mediaNotes = document.getElementById('mediaNotes');
 const transitionTimeEl = document.getElementById('transitionTime');
 const openDisplay = document.getElementById('openDisplay');
 const mediaMirrorContent = document.getElementById('mediaMirrorContent');
@@ -174,6 +176,7 @@ async function serializeSessionItems(items){
       source:item.source || '',
       pageNumber:item.pageNumber || 0,
       pages:item.pages || 0,
+      notes:item.notes || '',
       durationFormatted:item.durationFormatted || '',
       dataUrl:dataUrl || ''
     });
@@ -185,6 +188,7 @@ async function createEcpPayload(){
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
+    notes: sessionNotes?.value || '',
     settings: {
       masterVolume: parseFloat(masterVolume.value),
       intercomVolume: parseFloat(intercomVolume.value),
@@ -224,6 +228,7 @@ function createSessionItem(serialized){
     source: serialized.source || '',
     pageNumber: serialized.pageNumber || 0,
     pages: serialized.pages || 0,
+    notes: serialized.notes || '',
     durationFormatted: serialized.durationFormatted || 'Unknown'
   };
   return item;
@@ -234,6 +239,7 @@ async function applyImportedSession(payload){
   songs = (payload.music || []).map(createSessionItem);
   soundboardSounds = (payload.soundboard || []).map(createSessionItem);
   media = (payload.media || []).map(createSessionItem);
+  if (sessionNotes) sessionNotes.value = payload.notes || payload.sessionNotes || '';
 
   if (payload.settings){
     masterVolume.value = payload.settings.masterVolume ?? 1;
@@ -249,7 +255,7 @@ async function applyImportedSession(payload){
     selectedInputDeviceId = payload.settings.selectedInputDeviceId || '';
     selectedOutputDeviceId = payload.settings.selectedOutputDeviceId || '';
     musicLoop = payload.settings.musicLoop === true;
-    musicLoopEl.checked = musicLoop;
+    updateMusicLoopButton();
     currentSongIndex = Number.isInteger(payload.settings.currentSongIndex) && payload.settings.currentSongIndex >= 0 && payload.settings.currentSongIndex < songs.length ? payload.settings.currentSongIndex : -1;
     currentMediaIndex = Number.isInteger(payload.settings.currentMediaIndex) && payload.settings.currentMediaIndex >= 0 && payload.settings.currentMediaIndex < media.length ? payload.settings.currentMediaIndex : -1;
   }
@@ -443,7 +449,7 @@ async function convertPdfFromFile(file, scale = 1.5, format = 'jpeg'){
       await page.render({canvasContext:ctx, viewport}).promise;
       const blob = await canvasToBlob(canvas, mimeType);
       const url = URL.createObjectURL(blob);
-      items.push({ name: `${file.name} - page ${i}`, url, type: mimeType, source:'pdf', pageNumber:i, pages:total, file: null, filename:`page-${String(i).padStart(3,'0')}.${ext}` });
+      items.push({ name: `${file.name} - page ${i}`, url, type: mimeType, source:'pdf', pageNumber:i, pages:total, notes:'', file: null, filename:`page-${String(i).padStart(3,'0')}.${ext}` });
       page.cleanup?.();
     }
   } finally {
@@ -474,7 +480,7 @@ async function convertPptxFromFile(file, scale = 1, format = 'jpeg'){
   if (results.length === 0) throw new Error('Could not extract any slides from this PPTX.');
   return results.map(r=>{
     const url = URL.createObjectURL(r.blob);
-    return { name: `${file.name} - slide ${r.pageNumber}`, url, type:mimeType, source:'pptx', pageNumber: r.pageNumber, pages: slideCount, file: null };
+    return { name: `${file.name} - slide ${r.pageNumber}`, url, type:mimeType, source:'pptx', pageNumber: r.pageNumber, pages: slideCount, notes:'', file: null };
   });
 }
 
@@ -924,7 +930,7 @@ async function processMediaFile(file){
         media.push(...pages);
       } else {
         console.warn('PDF conversion produced no pages for', file.name);
-        media.push({name:file.name,type:'image/pdf',url:'',source:'pdf',pageNumber:0,pages:0});
+        media.push({name:file.name,type:'image/pdf',url:'',source:'pdf',pageNumber:0,pages:0,notes:''});
       }
       renderQueues();
     } else if (lower.endsWith('.pptx')){
@@ -934,12 +940,12 @@ async function processMediaFile(file){
         media.push(...slides);
       } else {
         console.warn('PPTX conversion produced no slides for', file.name);
-        media.push({name:file.name,type:'image/pptx',url:'',source:'pptx',pageNumber:0,pages:0});
+        media.push({name:file.name,type:'image/pptx',url:'',source:'pptx',pageNumber:0,pages:0,notes:''});
       }
       renderQueues();
     } else {
       const url = URL.createObjectURL(file);
-      const item = {name:file.name,url,type:file.type,file:file,durationFormatted:'Loading...',pages:1};
+      const item = {name:file.name,url,type:file.type,file:file,durationFormatted:'Loading...',pages:1,notes:''};
       media.push(item);
       loadFileMetadata(item, renderQueues);
       renderQueues();
@@ -947,7 +953,7 @@ async function processMediaFile(file){
   } catch (error) {
     console.error('Media processing failed for', file.name, error);
     setStatus(`Failed to load ${file.name}: ${error.message || 'unknown error'}`);
-    const fallback = {name:`${file.name} (failed)`,url:'',type:'error',source:'error',pageNumber:0,pages:0};
+    const fallback = {name:`${file.name} (failed)`,url:'',type:'error',source:'error',pageNumber:0,pages:0,notes:''};
     media.push(fallback);
     renderQueues();
   } finally {
@@ -1049,6 +1055,26 @@ function removeItem(type, index){
 function renderQueues(){
   renderMusicQueue();
   renderMediaQueue();
+  updateMediaNotesUI();
+}
+
+function getSelectedMediaItem(){
+  return currentMediaIndex >= 0 && currentMediaIndex < media.length ? media[currentMediaIndex] : null;
+}
+
+function updateMediaNotesUI(){
+  if (!mediaNotes) return;
+  const item = getSelectedMediaItem();
+  mediaNotes.disabled = !item;
+  mediaNotes.value = item?.notes || '';
+  mediaNotes.placeholder = item ? `Notes for ${item.name}` : 'Select an image or slide to edit notes';
+}
+
+if (mediaNotes) {
+  mediaNotes.addEventListener('input', ()=>{
+    const item = getSelectedMediaItem();
+    if (item) item.notes = mediaNotes.value;
+  });
 }
 
 musicFiles.addEventListener('change', e=>{
@@ -1117,7 +1143,19 @@ musicPlay.addEventListener('click', ()=>{
   updateButtonStates();
 });
 musicPause.addEventListener('click', ()=>{ musicAudio.pause(); musicPlaying=false; updateButtonStates(); });
-musicLoopEl.addEventListener('change', ()=> musicLoop = musicLoopEl.checked);
+function updateMusicLoopButton(){
+  if (!musicLoopButton) return;
+  musicLoopButton.classList.toggle('active-toggle', musicLoop);
+  musicLoopButton.classList.toggle('inactive', !musicLoop);
+  musicLoopButton.setAttribute('aria-pressed', String(musicLoop));
+}
+
+if (musicLoopButton) {
+  musicLoopButton.addEventListener('click', ()=>{
+    musicLoop = !musicLoop;
+    updateMusicLoopButton();
+  });
+}
 musicShuffleButton.addEventListener('click', ()=>{
   const currentSong = songs[currentSongIndex];
   songs = songs.sort(()=>Math.random()-0.5);
@@ -1160,6 +1198,7 @@ function updateButtonStates(){
   musicPlay.classList.toggle('inactive', !musicPlaying);
   musicPause.classList.toggle('active-pause', !musicPlaying);
   musicPause.classList.toggle('inactive', musicPlaying);
+  updateMusicLoopButton();
 
   mediaPlay.classList.toggle('active-play', mediaPlaying);
   mediaPlay.classList.toggle('inactive', !mediaPlaying);
@@ -1223,6 +1262,7 @@ function updateMediaUI(){
   currentMediaEl.textContent = (currentMediaIndex>=0 && media[currentMediaIndex])? media[currentMediaIndex].name : 'No media';
   const lis = mediaQueue.querySelectorAll('li');
   lis.forEach(li=> li.classList.toggle('active', parseInt(li.dataset.index)===currentMediaIndex));
+  updateMediaNotesUI();
   updateQueueProgress('media');
 }
 

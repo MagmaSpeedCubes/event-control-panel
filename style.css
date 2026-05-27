@@ -13,6 +13,8 @@ header{display:flex;flex-wrap:wrap;gap:16px;align-items:stretch}
 .intercom-card{flex:1 1 620px;min-width:320px}
 .ecp-card{flex:1 1 620px;min-width:320px;margin-bottom:0;padding:18px;background:#121212;border:1px solid #292929;border-radius:18px}
 .ecp-card .note{margin:10px 0 0;font-size:.9rem;color:#999;line-height:1.4}
+.notes-card{flex:1 1 100%;width:100%;padding:18px;background:#121212;border:1px solid #292929;border-radius:18px}
+.notes-card h3{margin-top:0}
 .file-label{display:inline-flex;flex-direction:column;gap:6px;font-size:.95rem;color:#ccc;width:100%}
 .file-label input[type=file]{width:100%;margin:0;padding:8px 10px}
 .file-input-box{margin-top:12px}
@@ -54,11 +56,17 @@ button.action-button.inactive{background:#2d2d2d;color:#bbb}
 .soundboard-button:hover{background:#262626;border-color:#555;transform:translateY(-1px)}
 button.action-button.active-play{background:#2a8;color:#011;border-color:#2f9;color:#011}
 button.action-button.active-pause{background:#b33;color:#fff;border-color:#d55}
+button.action-button.active-toggle{background:#2a8;color:#011;border-color:#2f9}
 button.action-button.active-announcement{background:#2a8;color:#fff;border-color:#2f9}
 button.action-button.active-announcement.inactive{background:#2d2d2d;color:#bbb;border-color:#333}
 input[type=file],input[type=number]{width:100%;margin-top:12px;padding:10px 12px;background:#121212;border:1px solid #333;border-radius:10px;color:#eee}
+textarea{width:100%;min-height:96px;margin-top:8px;padding:12px;background:#101010;border:1px solid #333;border-radius:10px;color:#eee;resize:vertical;line-height:1.45}
+textarea:focus{outline:none;border-color:#666}
+textarea:disabled{opacity:.55;cursor:not-allowed}
 #status{margin-top:8px;font-size:.95rem;color:#aaa}
 #currentSong,#currentMedia{font-weight:700;margin-bottom:10px}
+.media-notes-card{margin-top:14px;padding:14px;background:#121212;border:1px solid #292929;border-radius:14px}
+.media-notes-card label{display:block;font-size:.9rem;color:#ccc}
 .media-mirror{margin-top:16px;padding:14px;background:#121212;border:1px solid #292929;border-radius:14px}
 .media-mirror h4{margin:0 0 10px;font-size:1rem;color:#ccc}
 .mirror-content{min-height:220px;display:flex;align-items:center;justify-content:center;background:#080808;border-radius:14px;overflow:hidden}

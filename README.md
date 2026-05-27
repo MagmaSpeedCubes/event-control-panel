@@ -16,10 +16,10 @@ http://localhost:8000/index.html
 3. Click `Open Display Window` to open the second window which will show slides/videos.
 
 Notes:
-- Use the `Music` file picker to add audio files. Click a song to jump to it. Use `Play`, `Pause`, `Loop`, and `Shuffle`.
-- Use the `Slides / Media` file picker to add images or videos. Click items to show them on the display window. Set the transition time to control automatic looping.
+- Use the `Music` file picker to add audio files. Click a song to jump to it. Use `Autoplay`, `Pause`, `Loop`, and `Shuffle`.
+- Use the `Slides / Media` file picker to add images or videos. Click items to show them on the display window. Set the transition time to control automatic looping, and use selected slide notes for per-slide cues.
+- Session notes and per-slide notes are included in `.ecp` export/import files.
 - Intercom: choose `Live` (passthrough microphone to output) or `Recorded` (record while active, plays back when stopped). You must allow microphone access. The options `Pause music during announcement` and `Fade music` control music behavior during announcements.
-
 
 
 
