@@ -31,13 +31,19 @@
       <section id="ecp" class="panel ecp-card">
         <h3>Session</h3>
         <div class="row wrap">
-          <button id="ecpExport" class="action-button">Export .ecp</button>
-          <label class="file-label">Import .ecp<br>
-            <input id="ecpImportFile" type="file" accept=".ecp,.json,application/json" aria-describedby="ecpFileTypes">
+          <label>Loaded preset:<br>
+            <select id="presetSelect"><option value="">No presets loaded</option></select>
+          </label>
+          <button id="ecpExport" class="action-button">Export this preset</button>
+          <button id="ecpExportAll" class="action-button">Export all presets</button>
+        </div>
+        <div class="row wrap">
+          <label class="file-label">Import preset(s)<br>
+            <input id="ecpImportFile" type="file" accept=".ecp,.json,application/json" multiple aria-describedby="ecpFileTypes">
             <span id="ecpFileTypes" class="file-type-list">Supported: ECP session (.ecp), JSON (.json).</span>
           </label>
         </div>
-        <p class="note">Save and restore the current music, soundboard, media, and settings.</p>
+        <p class="note">Load one or more presets, switch between them, and export the current or all loaded presets.</p>
       </section>
       <section id="sessionNotesPanel" class="panel notes-card">
         <h3>Notes</h3>

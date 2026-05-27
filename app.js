@@ -40,7 +40,9 @@ const musicShuffleButton = document.getElementById('musicShuffle');
 const soundboardFiles = document.getElementById('soundboardFiles');
 const soundboardGrid = document.getElementById('soundboardGrid');
 const ecpExport = document.getElementById('ecpExport');
+const ecpExportAll = document.getElementById('ecpExportAll');
 const ecpImportFile = document.getElementById('ecpImportFile');
+const presetSelect = document.getElementById('presetSelect');
 const sessionNotes = document.getElementById('sessionNotes');
 
 const mediaFiles = document.getElementById('mediaFiles');
@@ -184,10 +186,8 @@ async function serializeSessionItems(items){
   return list;
 }
 
-async function createEcpPayload(){
-  return {
-    version: 1,
-    exportedAt: new Date().toISOString(),
+async function createEcpPayload(sessionState){
+  const state = sessionState || {
     notes: sessionNotes?.value || '',
     settings: {
       masterVolume: parseFloat(masterVolume.value),
@@ -202,10 +202,35 @@ async function createEcpPayload(){
       currentSongIndex,
       currentMediaIndex
     },
-    music: await serializeSessionItems(songs),
-    soundboard: await serializeSessionItems(soundboardSounds),
-    media: await serializeSessionItems(media)
+    music: songs,
+    soundboard: soundboardSounds,
+    media: media
   };
+
+  const musicItems = state.music || state.songs || [];
+  const soundboardItems = state.soundboard || state.soundboardSounds || [];
+  const mediaItems = state.media || [];
+
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    notes: state.notes || state.sessionNotes || '',
+    settings: state.settings,
+    music: await serializeSessionItems(musicItems),
+    soundboard: await serializeSessionItems(soundboardItems),
+    media: await serializeSessionItems(mediaItems)
+  };
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(url), 100);
 }
 
 function downloadJson(data, filename){
@@ -220,11 +245,14 @@ function downloadJson(data, filename){
   setTimeout(()=> URL.revokeObjectURL(url), 100);
 }
 
+let presets = [];
+let selectedPresetIndex = -1;
+
 function createSessionItem(serialized){
   const item = {
     name: serialized.name || 'Unknown',
     type: serialized.type || 'application/octet-stream',
-    url: serialized.dataUrl || '',
+    url: serialized.dataUrl || serialized.url || '',
     source: serialized.source || '',
     pageNumber: serialized.pageNumber || 0,
     pages: serialized.pages || 0,
@@ -232,6 +260,116 @@ function createSessionItem(serialized){
     durationFormatted: serialized.durationFormatted || 'Unknown'
   };
   return item;
+}
+
+function buildPresetFromPayload(payload, fileName){
+  return {
+    name: fileName || payload.notes || 'Preset',
+    notes: payload.notes || payload.sessionNotes || '',
+    settings: payload.settings || {},
+    music: (payload.music || []).map(createSessionItem),
+    soundboard: (payload.soundboard || []).map(createSessionItem),
+    media: (payload.media || []).map(createSessionItem)
+  };
+}
+
+function updatePresetSelect(){
+  if (!presetSelect) return;
+  presetSelect.innerHTML = '';
+  if (presets.length === 0){
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'No presets loaded';
+    presetSelect.appendChild(option);
+    return;
+  }
+
+  presets.forEach((preset, index)=>{
+    const option = document.createElement('option');
+    option.value = String(index);
+    option.textContent = preset.name || `Preset ${index + 1}`;
+    if (index === selectedPresetIndex) option.selected = true;
+    presetSelect.appendChild(option);
+  });
+}
+
+function applyPreset(preset){
+  songs = (preset.music || []).map(item => ({ ...item }));
+  soundboardSounds = (preset.soundboard || []).map(item => ({ ...item }));
+  media = (preset.media || []).map(item => ({ ...item }));
+  if (sessionNotes) sessionNotes.value = preset.notes || '';
+
+  if (preset.settings){
+    masterVolume.value = preset.settings.masterVolume ?? 1;
+    musicAudio.volume = parseFloat(masterVolume.value);
+    intercomVolume.value = preset.settings.intercomVolume ?? 1;
+    pauseMusicDuring.checked = preset.settings.pauseMusicDuringAnnouncement === true;
+    fadeMusic.checked = preset.settings.fadeMusic === true;
+    transitionTimeEl.value = preset.settings.transitionTime || 5;
+    if (preset.settings.intercomMode){
+      const modeRadio = document.querySelector(`input[name="mode"][value="${preset.settings.intercomMode}"]`);
+      if (modeRadio) modeRadio.checked = true;
+    }
+    selectedInputDeviceId = preset.settings.selectedInputDeviceId || '';
+    selectedOutputDeviceId = preset.settings.selectedOutputDeviceId || '';
+    musicLoop = preset.settings.musicLoop === true;
+    updateMusicLoopButton();
+    currentSongIndex = Number.isInteger(preset.settings.currentSongIndex) && preset.settings.currentSongIndex >= 0 && preset.settings.currentSongIndex < songs.length ? preset.settings.currentSongIndex : -1;
+    currentMediaIndex = Number.isInteger(preset.settings.currentMediaIndex) && preset.settings.currentMediaIndex >= 0 && preset.settings.currentMediaIndex < media.length ? preset.settings.currentMediaIndex : -1;
+  } else {
+    currentSongIndex = -1;
+    currentMediaIndex = -1;
+  }
+
+  renderQueues();
+  renderSoundboardGrid();
+  updateMusicUI();
+  updateMediaUI();
+
+  if (currentSongIndex >= 0 && songs[currentSongIndex]){
+    musicAudio.src = songs[currentSongIndex].url;
+  }
+  if (currentMediaIndex >= 0 && media[currentMediaIndex]){
+    updateMediaMirror(media[currentMediaIndex]);
+    sendMediaToDisplay(media[currentMediaIndex]);
+  }
+}
+
+async function loadPresetFile(file){
+  const text = await file.text();
+  const payload = JSON.parse(text);
+  if (!payload || payload.version !== 1) throw new Error('Unsupported session file');
+  const preset = buildPresetFromPayload(payload, file.name);
+  presets.push(preset);
+  if (selectedPresetIndex === -1){
+    selectedPresetIndex = 0;
+    applyPreset(preset);
+  }
+  updatePresetSelect();
+}
+
+async function exportSelectedPreset(){
+  const payload = await createEcpPayload();
+  const currentPreset = selectedPresetIndex >= 0 ? presets[selectedPresetIndex] : null;
+  const filename = currentPreset ? `${currentPreset.name.replace(/\.ecp$/i, '') || 'preset'}.ecp` : 'session.ecp';
+  downloadJson(payload, filename);
+}
+
+async function exportAllPresets(){
+  if (presets.length === 0) {
+    setStatus('No presets to export.');
+    return;
+  }
+
+  const zip = new JSZip();
+  for (const preset of presets){
+    const payload = await createEcpPayload(preset);
+    const fileName = `${preset.name.replace(/\.ecp$/i, '') || 'preset'}.ecp`;
+    zip.file(fileName, JSON.stringify(payload, null, 2));
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  downloadBlob(blob, 'presets.zip');
 }
 
 async function applyImportedSession(payload){
@@ -277,10 +415,9 @@ async function applyImportedSession(payload){
 ecpExport.addEventListener('click', async ()=>{
   ecpExport.disabled = true;
   try {
-    setStatus('Preparing .ecp export...');
-    const payload = await createEcpPayload();
-    downloadJson(payload, 'session.ecp');
-    setStatus('Export ready.');
+    setStatus('Preparing preset export...');
+    await exportSelectedPreset();
+    setStatus('Preset export ready.');
   } catch (err) {
     console.error(err);
     setStatus(`Export failed: ${err.message || 'unknown error'}`);
@@ -290,22 +427,55 @@ ecpExport.addEventListener('click', async ()=>{
   }
 });
 
-ecpImportFile.addEventListener('change', async e=>{
-  const file = e.target.files?.[0];
-  if (!file) return;
+ecpExportAll.addEventListener('click', async ()=>{
+  ecpExportAll.disabled = true;
   try {
-    setStatus(`Importing ${file.name}...`);
-    const text = await file.text();
-    const payload = JSON.parse(text);
-    await applyImportedSession(payload);
-    setStatus('Session imported successfully.');
+    setStatus('Preparing all presets zip...');
+    await exportAllPresets();
+    setStatus('All presets exported successfully.');
   } catch (err) {
     console.error(err);
-    setStatus(`Import failed: ${err.message || 'invalid file'}`);
+    setStatus(`Export failed: ${err.message || 'unknown error'}`);
   } finally {
-    e.target.value = '';
-    setTimeout(()=> setStatus(''), 5000);
+    ecpExportAll.disabled = false;
+    setTimeout(()=> setStatus(''), 4000);
   }
+});
+
+if (presetSelect) {
+  presetSelect.addEventListener('change', ()=>{
+    const index = Number(presetSelect.value);
+    if (!Number.isFinite(index) || index < 0 || index >= presets.length) return;
+    selectedPresetIndex = index;
+    applyPreset(presets[selectedPresetIndex]);
+  });
+}
+
+ecpImportFile.addEventListener('change', async e=>{
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+
+  let importedCount = 0;
+  let failedCount = 0;
+  for (const file of files){
+    try {
+      setStatus(`Importing ${file.name}...`);
+      await loadPresetFile(file);
+      importedCount += 1;
+    } catch (err) {
+      console.error(err);
+      failedCount += 1;
+    }
+  }
+
+  if (importedCount > 0) {
+    setStatus(`Imported ${importedCount} preset${importedCount === 1 ? '' : 's'}.`);
+  }
+  if (failedCount > 0) {
+    setStatus(`${failedCount} preset${failedCount === 1 ? '' : 's'} failed to import.`);
+  }
+  e.target.value = '';
+  setTimeout(()=> setStatus(''), 5000);
 });
 
 function formatDuration(seconds){
