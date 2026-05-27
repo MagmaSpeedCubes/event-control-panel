@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Event Display</title>
+  <style>
+    html,body{height:100%;margin:0;background:#000;color:#fff;display:flex;align-items:center;justify-content:center}
+    img,video{max-width:100%;max-height:100%}
+  </style>
+</head>
+<body>
+  <div id="displayArea">No media</div>
+  <script>
+    const displayArea = document.getElementById('displayArea');
+    let current = null;
+    let currentVideo = null;
+
+    window.addEventListener('message', e => {
+      const msg = e.data;
+      if (!msg || typeof msg !== 'object') return;
+      if (msg.type === 'show') {
+        showMedia(msg.item);
+      }
+      if (msg.type === 'pause') {
+        if (currentVideo) currentVideo.pause();
+      }
+      if (msg.type === 'play') {
+        if (currentVideo) currentVideo.play().catch(()=>{});
+      }
+    });
+
+    function sendMessageToOpener(message){
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(message, '*');
+      }
+    }
+
+    function clear(){
+      displayArea.innerHTML = '';
+      currentVideo = null;
+    }
+
+    function showMedia(item){
+      clear();
+      current = item;
+      if (!item) return;
+      if (item.type.startsWith('image/')){
+        const img = document.createElement('img');
+        img.src = item.url;
+        displayArea.appendChild(img);
+      } else if (item.type.startsWith('video/')){
+        const v = document.createElement('video');
+        v.src = item.url;
+        v.autoplay = true;
+        v.controls = false;
+        v.playsInline = true;
+        v.style.maxWidth='100%';
+        v.style.maxHeight='100%';
+        v.addEventListener('ended', ()=> sendMessageToOpener({type:'videoEnded'}));
+        displayArea.appendChild(v);
+        currentVideo = v;
+      } else if (item.type === 'slide'){
+        const div = document.createElement('div');
+        div.style.fontSize='48px';
+        div.textContent = item.title||'Slide';
+        displayArea.appendChild(div);
+      }
+    }
+  </script>
+</body>
+</html>

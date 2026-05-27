@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Event Control Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="ecp-logo.png" type="image/png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+
+    <header>
+      <div id="time">--:--:--</div>
+      <section id="intercom" class="panel intercom-card">
+        <h3>Intercom</h3>
+        <div class="row">
+          <div class="field-group">
+            <label><input type="radio" name="mode" value="live" checked> Live</label>
+            <label><input type="radio" name="mode" value="recorded"> Recorded</label>
+          </div>
+          <div class="field-group">
+            <label>Volume: <input id="intercomVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+          </div>
+        </div>
+        <div class="row wrap">
+          <label>Input device:<br><select id="inputDeviceSelect"></select></label>
+          <label>Output device:<br><select id="outputDeviceSelect"></select></label>
+        </div>
+        <div class="row wrap">
+          <label><input id="pauseMusicDuringAnnouncement" type="checkbox" checked> Pause music during announcement</label>
+          <label><input id="fadeMusic" type="checkbox"> Fade music during announcement</label>
+        </div>
+        <button id="intercomToggle" class="action-button">Start Announcement</button>
+      </section>
+    </header>
+
+    <main>
+      <section id="left" class="panel">
+        <h3>Music</h3>
+        <div id="currentSong">No song</div>
+        <ul id="musicQueue"></ul>
+        <div class="controls">
+          <button id="musicPlay" class="action-button">Play</button>
+          <button id="musicPause" class="action-button">Pause</button>
+          <label><input id="musicLoop" type="checkbox"> Loop</label>
+          <button id="musicShuffle" class="action-button">Shuffle</button>
+        </div>
+        <input id="musicFiles" type="file" accept="audio/*" multiple>
+      </section>
+
+      <section id="right" class="panel">
+        <h3>Slides / Media</h3>
+        <div id="currentMedia">No media</div>
+        <ul id="mediaQueue"></ul>
+        <div class="controls">
+          <button id="mediaPlay" class="action-button">Play</button>
+          <button id="mediaPause" class="action-button">Pause</button>
+          <label>Transition (s): <input id="transitionTime" type="number" min="1" value="5"></label>
+        </div>
+        <div id="mediaMirror" class="media-mirror">
+          <h4>Mirror Display</h4>
+          <div id="mediaMirrorContent" class="mirror-content">Nothing displayed</div>
+        </div>
+        <input id="mediaFiles" type="file" accept="image/*,video/*,.pdf,.pptx" multiple>
+        <div class="open-display-row">
+          <button id="openDisplay">Open Display Window</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="bottom">
+      <h4>Settings</h4>
+      <div>Output volume master: <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="1"></div>
+      <div id="status"></div>
+    </footer>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.246/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
