@@ -1,10 +1,23 @@
 *{box-sizing:border-box;font-family:'Space Mono',system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
 body{margin:0;background:#101010;color:#eee}
 #app{display:flex;flex-direction:column;min-height:100vh;gap:16px;padding:16px;max-width:1400px;margin:0 auto}
-header{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
-#time{font-size:2rem;font-weight:700;padding:20px 24px;background:#1e1e1e;border:1px solid #2f2f2f;border-radius:18px;min-width:220px;width:220px;text-align:center;flex:0 0 220px}
+header{display:flex;flex-wrap:wrap;gap:16px;align-items:stretch}
+.brand-stack{display:flex;flex:0 0 220px;width:220px;flex-direction:column;gap:8px;align-self:stretch}
+.app-banner-button,.by-magmalabs-banner{display:flex;align-items:center;justify-content:center;width:100%;border:1px solid #2f2f2f;border-radius:14px;background:#111;overflow:hidden;transition:background .2s,border-color .2s,transform .2s}
+.app-banner-button{height:62px;padding:10px;cursor:pointer}
+.by-magmalabs-banner{height:52px;padding:10px;text-decoration:none}
+.app-banner-button:hover,.by-magmalabs-banner:hover{background:#1f1f1f;border-color:#444;transform:translateY(-1px)}
+.app-banner-button img,.by-magmalabs-banner img{display:block;width:100%;height:100%;object-fit:contain}
+#time{display:flex;align-items:center;justify-content:center;flex:1 1 auto;min-height:86px;font-size:2rem;font-weight:700;padding:20px 16px;background:#1e1e1e;border:1px solid #2f2f2f;border-radius:18px;min-width:0;width:100%;text-align:center}
 .panel{background:#161616;padding:20px;border-radius:18px;box-shadow:0 0 0 1px rgba(255,255,255,.05)}
 .intercom-card{flex:1 1 620px;min-width:320px}
+.ecp-card{flex:1 1 620px;min-width:320px;margin-bottom:0;padding:18px;background:#121212;border:1px solid #292929;border-radius:18px}
+.ecp-card .note{margin:10px 0 0;font-size:.9rem;color:#999;line-height:1.4}
+.file-label{display:inline-flex;flex-direction:column;gap:6px;font-size:.95rem;color:#ccc;width:100%}
+.file-label input[type=file]{width:100%;margin:0;padding:8px 10px}
+.file-input-box{margin-top:12px}
+.file-input-box input[type=file]{margin-top:0}
+.file-type-list{display:block;margin-top:6px;font-size:.78rem;line-height:1.45;color:#aaa}
 .row{display:flex;gap:16px;align-items:center;margin-bottom:12px}
 .row.wrap{flex-wrap:wrap}
 .field-group{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
@@ -34,6 +47,11 @@ button.action-button.inactive{background:#2d2d2d;color:#bbb}
 .brand-banner{display:flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;color:#fff;background:#111;border:1px solid #2f2f2f;border-radius:14px;padding:12px 16px;font-size:.95rem;letter-spacing:.08em;transition:background .2s,border-color .2s;margin-top:-6px;z-index:1;position:relative}
 .brand-banner:hover{background:#1f1f1f;border-color:#444}
 .brand-banner .brand-logo{height:28px;width:auto;display:block}
+.soundboard-card{margin-top:20px;padding:16px;background:#121212;border:1px solid #292929;border-radius:16px}
+.soundboard-card h4{margin:0 0 12px;font-size:1rem;color:#ddd}
+.soundboard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.soundboard-button{width:100%;padding:12px 14px;background:#1f1f1f;border:1px solid #333;border-radius:12px;color:#eee;cursor:pointer;font-family:'Space Mono',system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;transition:background .2s,border-color .2s,transform .2s;text-align:center}
+.soundboard-button:hover{background:#262626;border-color:#555;transform:translateY(-1px)}
 button.action-button.active-play{background:#2a8;color:#011;border-color:#2f9;color:#011}
 button.action-button.active-pause{background:#b33;color:#fff;border-color:#d55}
 button.action-button.active-announcement{background:#2a8;color:#fff;border-color:#2f9}
@@ -46,4 +64,4 @@ input[type=file],input[type=number]{width:100%;margin-top:12px;padding:10px 12px
 .mirror-content{min-height:220px;display:flex;align-items:center;justify-content:center;background:#080808;border-radius:14px;overflow:hidden}
 .mirror-content img,.mirror-content video{max-width:100%;max-height:100%;display:block}
 .open-display-row{margin-top:12px}
-@media (max-width:900px){main{flex-direction:column}#left,#right{flex:1 1 100%}}
+@media (max-width:900px){main{flex-direction:column}#left,#right{flex:1 1 100%}.brand-stack{flex:1 1 100%;width:100%;align-self:auto}.app-banner-button{height:74px}.by-magmalabs-banner{height:58px}#time{min-height:72px}}

@@ -6,7 +6,7 @@
   <title>Event Control Panel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;700&family=Saira:ital,wght@0,400;0,700;1,400;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="icon" href="ecp-logo.png" type="image/png">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -14,7 +14,26 @@
   <div id="app">
 
     <header>
-      <div id="time">--:--:--</div>
+      <div class="brand-stack">
+        <button id="appBanner" class="app-banner-button" type="button" aria-label="Reload Event Control Panel">
+          <img src="ecp-banner.png" alt="Event Control Panel">
+        </button>
+        <a class="by-magmalabs-banner" href="https://magmalabs.dev/" target="_blank" rel="noopener">
+          <img src="by-magmalabs.png" alt="By MagmaLabs">
+        </a>
+        <div id="time">--:--:--</div>
+      </div>
+      <section id="ecp" class="panel ecp-card">
+        <h3>Session</h3>
+        <div class="row wrap">
+          <button id="ecpExport" class="action-button">Export .ecp</button>
+          <label class="file-label">Import .ecp<br>
+            <input id="ecpImportFile" type="file" accept=".ecp,.json,application/json" aria-describedby="ecpFileTypes">
+            <span id="ecpFileTypes" class="file-type-list">Supported: ECP session (.ecp), JSON (.json).</span>
+          </label>
+        </div>
+        <p class="note">Save and restore the current music, soundboard, media, and settings.</p>
+      </section>
       <section id="intercom" class="panel intercom-card">
         <h3>Intercom</h3>
         <div class="row">
@@ -44,12 +63,25 @@
         <div id="currentSong">No song</div>
         <ul id="musicQueue"></ul>
         <div class="controls">
+          <button id="musicPrev" class="action-button">Prev</button>
           <button id="musicPlay" class="action-button">Play</button>
           <button id="musicPause" class="action-button">Pause</button>
+          <button id="musicNext" class="action-button">Next</button>
           <label><input id="musicLoop" type="checkbox"> Loop</label>
           <button id="musicShuffle" class="action-button">Shuffle</button>
         </div>
-        <input id="musicFiles" type="file" accept="audio/*" multiple>
+        <div class="file-input-box">
+          <input id="musicFiles" type="file" accept="audio/*" multiple aria-describedby="musicFileTypes">
+          <div id="musicFileTypes" class="file-type-list">Supported: MP3, WAV, OGG, M4A, AAC, FLAC, and other browser-playable audio files.</div>
+        </div>
+        <div class="soundboard-card">
+          <h4>Soundboard</h4>
+          <div class="file-input-box">
+            <input id="soundboardFiles" type="file" accept="audio/*" multiple aria-describedby="soundboardFileTypes">
+            <div id="soundboardFileTypes" class="file-type-list">Supported: MP3, WAV, OGG, M4A, AAC, FLAC, and other browser-playable audio files.</div>
+          </div>
+          <div id="soundboardGrid" class="soundboard-grid"></div>
+        </div>
       </section>
 
       <section id="right" class="panel">
@@ -57,15 +89,20 @@
         <div id="currentMedia">No media</div>
         <ul id="mediaQueue"></ul>
         <div class="controls">
+          <button id="mediaPrev" class="action-button">Prev</button>
           <button id="mediaPlay" class="action-button">Play</button>
           <button id="mediaPause" class="action-button">Pause</button>
+          <button id="mediaNext" class="action-button">Next</button>
           <label>Transition (s): <input id="transitionTime" type="number" min="1" value="5"></label>
         </div>
         <div id="mediaMirror" class="media-mirror">
           <h4>Mirror Display</h4>
           <div id="mediaMirrorContent" class="mirror-content">Nothing displayed</div>
         </div>
-        <input id="mediaFiles" type="file" accept="image/*,video/*,.pdf,.pptx" multiple>
+        <div class="file-input-box">
+          <input id="mediaFiles" type="file" accept="image/*,video/*,.pdf,application/pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple aria-describedby="mediaFileTypes">
+          <div id="mediaFileTypes" class="file-type-list">Supported: images, videos, PDF pages (.pdf), and PowerPoint slides (.pptx).</div>
+        </div>
         <div class="open-display-row">
           <button id="openDisplay">Open Display Window</button>
         </div>
@@ -79,7 +116,6 @@
     </footer>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.246/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="app.js"></script>
 </body>

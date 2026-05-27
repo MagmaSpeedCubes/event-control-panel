@@ -17,6 +17,8 @@ musicAudio.preload = 'auto';
 let musicPlaying = false;
 let musicLoop = false;
 
+let soundboardSounds = [];
+
 let media = [];
 let currentMediaIndex = -1;
 let displayWindow = null;
@@ -31,18 +33,27 @@ const musicQueue = document.getElementById('musicQueue');
 const currentSongEl = document.getElementById('currentSong');
 const musicPlay = document.getElementById('musicPlay');
 const musicPause = document.getElementById('musicPause');
+const musicPrev = document.getElementById('musicPrev');
+const musicNext = document.getElementById('musicNext');
 const musicLoopEl = document.getElementById('musicLoop');
 const musicShuffleButton = document.getElementById('musicShuffle');
+const soundboardFiles = document.getElementById('soundboardFiles');
+const soundboardGrid = document.getElementById('soundboardGrid');
+const ecpExport = document.getElementById('ecpExport');
+const ecpImportFile = document.getElementById('ecpImportFile');
 
 const mediaFiles = document.getElementById('mediaFiles');
 const mediaQueue = document.getElementById('mediaQueue');
 const currentMediaEl = document.getElementById('currentMedia');
 const mediaPlay = document.getElementById('mediaPlay');
 const mediaPause = document.getElementById('mediaPause');
+const mediaPrev = document.getElementById('mediaPrev');
+const mediaNext = document.getElementById('mediaNext');
 const transitionTimeEl = document.getElementById('transitionTime');
 const openDisplay = document.getElementById('openDisplay');
 const mediaMirrorContent = document.getElementById('mediaMirrorContent');
 const statusEl = document.getElementById('status');
+const appBanner = document.getElementById('appBanner');
 
 const intercomToggle = document.getElementById('intercomToggle');
 const inputDeviceSelect = document.getElementById('inputDeviceSelect');
@@ -54,6 +65,10 @@ const fadeMusic = document.getElementById('fadeMusic');
 
 let selectedInputDeviceId = '';
 let selectedOutputDeviceId = '';
+
+if (appBanner) {
+  appBanner.addEventListener('click', () => window.location.reload());
+}
 
 async function refreshAudioDeviceLists(){
   if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
@@ -115,6 +130,178 @@ masterVolume.addEventListener('input', ()=>{
   musicAudio.volume = v;
 });
 
+function readBlobAsDataURL(blob){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result);
+    reader.onerror=()=>reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function readFileAsDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result);
+    reader.onerror=()=>reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function getItemDataUrl(item){
+  if (typeof item.url === 'string' && item.url.startsWith('data:')) return item.url;
+  if (item.file) return await readFileAsDataURL(item.file);
+  if (item.url) {
+    try {
+      const response = await fetch(item.url);
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      return await readBlobAsDataURL(blob);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+async function serializeSessionItems(items){
+  const list = [];
+  for (const item of items){
+    const dataUrl = await getItemDataUrl(item);
+    list.push({
+      name:item.name,
+      type:item.type || '',
+      source:item.source || '',
+      pageNumber:item.pageNumber || 0,
+      pages:item.pages || 0,
+      durationFormatted:item.durationFormatted || '',
+      dataUrl:dataUrl || ''
+    });
+  }
+  return list;
+}
+
+async function createEcpPayload(){
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    settings: {
+      masterVolume: parseFloat(masterVolume.value),
+      intercomVolume: parseFloat(intercomVolume.value),
+      pauseMusicDuringAnnouncement: pauseMusicDuring.checked,
+      fadeMusic: fadeMusic.checked,
+      musicLoop: musicLoop,
+      transitionTime: parseFloat(transitionTimeEl.value) || 5,
+      intercomMode: document.querySelector('input[name="mode"]:checked')?.value || 'live',
+      selectedInputDeviceId,
+      selectedOutputDeviceId,
+      currentSongIndex,
+      currentMediaIndex
+    },
+    music: await serializeSessionItems(songs),
+    soundboard: await serializeSessionItems(soundboardSounds),
+    media: await serializeSessionItems(media)
+  };
+}
+
+function downloadJson(data, filename){
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(url), 100);
+}
+
+function createSessionItem(serialized){
+  const item = {
+    name: serialized.name || 'Unknown',
+    type: serialized.type || 'application/octet-stream',
+    url: serialized.dataUrl || '',
+    source: serialized.source || '',
+    pageNumber: serialized.pageNumber || 0,
+    pages: serialized.pages || 0,
+    durationFormatted: serialized.durationFormatted || 'Unknown'
+  };
+  return item;
+}
+
+async function applyImportedSession(payload){
+  if (!payload || payload.version !== 1) throw new Error('Unsupported session file');
+  songs = (payload.music || []).map(createSessionItem);
+  soundboardSounds = (payload.soundboard || []).map(createSessionItem);
+  media = (payload.media || []).map(createSessionItem);
+
+  if (payload.settings){
+    masterVolume.value = payload.settings.masterVolume ?? 1;
+    musicAudio.volume = parseFloat(masterVolume.value);
+    intercomVolume.value = payload.settings.intercomVolume ?? 1;
+    pauseMusicDuring.checked = payload.settings.pauseMusicDuringAnnouncement === true;
+    fadeMusic.checked = payload.settings.fadeMusic === true;
+    transitionTimeEl.value = payload.settings.transitionTime || 5;
+    if (payload.settings.intercomMode){
+      const modeRadio = document.querySelector(`input[name="mode"][value="${payload.settings.intercomMode}"]`);
+      if (modeRadio) modeRadio.checked = true;
+    }
+    selectedInputDeviceId = payload.settings.selectedInputDeviceId || '';
+    selectedOutputDeviceId = payload.settings.selectedOutputDeviceId || '';
+    musicLoop = payload.settings.musicLoop === true;
+    musicLoopEl.checked = musicLoop;
+    currentSongIndex = Number.isInteger(payload.settings.currentSongIndex) && payload.settings.currentSongIndex >= 0 && payload.settings.currentSongIndex < songs.length ? payload.settings.currentSongIndex : -1;
+    currentMediaIndex = Number.isInteger(payload.settings.currentMediaIndex) && payload.settings.currentMediaIndex >= 0 && payload.settings.currentMediaIndex < media.length ? payload.settings.currentMediaIndex : -1;
+  }
+
+  renderQueues();
+  renderSoundboardGrid();
+  updateMusicUI();
+  updateMediaUI();
+  if (currentSongIndex >= 0 && songs[currentSongIndex]){
+    musicAudio.src = songs[currentSongIndex].url;
+  }
+  if (currentMediaIndex >= 0 && media[currentMediaIndex]){
+    updateMediaMirror(media[currentMediaIndex]);
+    sendMediaToDisplay(media[currentMediaIndex]);
+  }
+  await refreshAudioDeviceLists();
+}
+
+ecpExport.addEventListener('click', async ()=>{
+  ecpExport.disabled = true;
+  try {
+    setStatus('Preparing .ecp export...');
+    const payload = await createEcpPayload();
+    downloadJson(payload, 'session.ecp');
+    setStatus('Export ready.');
+  } catch (err) {
+    console.error(err);
+    setStatus(`Export failed: ${err.message || 'unknown error'}`);
+  } finally {
+    ecpExport.disabled = false;
+    setTimeout(()=> setStatus(''), 4000);
+  }
+});
+
+ecpImportFile.addEventListener('change', async e=>{
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    setStatus(`Importing ${file.name}...`);
+    const text = await file.text();
+    const payload = JSON.parse(text);
+    await applyImportedSession(payload);
+    setStatus('Session imported successfully.');
+  } catch (err) {
+    console.error(err);
+    setStatus(`Import failed: ${err.message || 'invalid file'}`);
+  } finally {
+    e.target.value = '';
+    setTimeout(()=> setStatus(''), 5000);
+  }
+});
+
 function formatDuration(seconds){
   if (!Number.isFinite(seconds) || seconds <= 0) return 'Unknown';
   const minutes = Math.floor(seconds/60);
@@ -152,37 +339,387 @@ function loadFileMetadata(item, callback){
 }
 
 async function extractPdfPages(file){
-  if (!window.pdfjsLib) throw new Error('pdfjsLib is unavailable');
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.246/pdf.worker.min.js';
-  pdfjsLib.disableWorker = true;
-  const array = await file.arrayBuffer();
-  const loadingTask = pdfjsLib.getDocument({data:new Uint8Array(array)});
-  const pdf = await loadingTask.promise;
-  const pages = [];
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++){
-    const page = await pdf.getPage(pageNumber);
-    const viewport = page.getViewport({scale:1.5});
-    const canvas = document.createElement('canvas');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    const ctx = canvas.getContext('2d');
-    await page.render({canvasContext:ctx, viewport}).promise;
-    pages.push({
-      name:`${file.name} - page ${pageNumber}`,
-      url:canvas.toDataURL('image/jpeg',0.8),
-      type:'image/pdf',
-      source:'pdf',
-      pageNumber,
-      pages:pdf.numPages
-    });
-  }
-  return pages;
+  return convertPdfFromFile(file, 1.5, 'jpeg');
 }
 
 const EMU_PER_PX = 9525;
+const PPTX_PRES_NS = 'http://schemas.openxmlformats.org/presentationml/2006/main';
+const PPTX_DRAW_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+const PPTX_REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const PDFJS_GLOBAL_SCRIPT_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.246/pdf.min.js';
+const PDFJS_GLOBAL_WORKER_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.246/pdf.worker.min.js';
+const PDFJS_MODULE_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs';
+const PDFJS_MODULE_WORKER_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
+let pdfJsReadyPromise = null;
+const loadedPptxFontFamilies = new Set();
 
 function parseXmlString(xml){
   return new DOMParser().parseFromString(xml,'application/xml');
+}
+
+// Utility from converter: canvas -> Blob
+function canvasToBlob(canvas, mimeType) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Canvas toBlob failed')), mimeType, 0.92);
+  });
+}
+
+function configurePdfJs(pdfjs, workerSrc){
+  if (!pdfjs || !pdfjs.getDocument) throw new Error('PDF.js loaded without getDocument');
+  if (pdfjs.GlobalWorkerOptions && !pdfjs.GlobalWorkerOptions.workerSrc) {
+    pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+  }
+  try {
+    if ('disableWorker' in pdfjs) pdfjs.disableWorker = true;
+  } catch {
+    // Module namespace objects may be read-only; workerSrc is enough for modern builds.
+  }
+  window.pdfjsLib = pdfjs;
+  return pdfjs;
+}
+
+function loadScript(src){
+  return new Promise((resolve, reject)=>{
+    const existing = Array.from(document.scripts).find(script => script.src === src);
+    if (existing && window.pdfjsLib) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function loadPdfJs(){
+  if (window.pdfjsLib?.getDocument) return configurePdfJs(window.pdfjsLib, PDFJS_GLOBAL_WORKER_SRC);
+
+  try {
+    await loadScript(PDFJS_GLOBAL_SCRIPT_SRC);
+    if (window.pdfjsLib?.getDocument) return configurePdfJs(window.pdfjsLib, PDFJS_GLOBAL_WORKER_SRC);
+  } catch (error) {
+    console.warn('PDF.js global build failed to load:', error);
+  }
+
+  try {
+    const modulePdfJs = await import(PDFJS_MODULE_SRC);
+    return configurePdfJs(modulePdfJs, PDFJS_MODULE_WORKER_SRC);
+  } catch (error) {
+    console.warn('PDF.js module build failed to load:', error);
+  }
+
+  throw new Error('PDF.js failed to load. Check your connection and try importing the PDF again.');
+}
+
+async function ensurePdfJsConfigured(){
+  if (window.pdfjsLib?.getDocument) return configurePdfJs(window.pdfjsLib, PDFJS_GLOBAL_WORKER_SRC);
+  if (!pdfJsReadyPromise) pdfJsReadyPromise = loadPdfJs();
+  return pdfJsReadyPromise;
+}
+
+// Convert a PDF File to slide items (uses pdfjsLib already loaded)
+async function convertPdfFromFile(file, scale = 1.5, format = 'jpeg'){
+  const pdfjs = await ensurePdfJsConfigured();
+  setStatus(`Converting PDF: ${file.name}`);
+  const array = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({data:new Uint8Array(array)}).promise;
+  const total = pdf.numPages;
+  const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+  const ext = format === 'png' ? 'png' : 'jpg';
+  const items = [];
+  try {
+    for (let i=1;i<=total;i++){
+      setStatus(`Rendering page ${i} of ${total}...`);
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({scale});
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      const ctx = canvas.getContext('2d');
+      if (format === 'jpeg'){ ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); }
+      await page.render({canvasContext:ctx, viewport}).promise;
+      const blob = await canvasToBlob(canvas, mimeType);
+      const url = URL.createObjectURL(blob);
+      items.push({ name: `${file.name} - page ${i}`, url, type: mimeType, source:'pdf', pageNumber:i, pages:total, file: null, filename:`page-${String(i).padStart(3,'0')}.${ext}` });
+      page.cleanup?.();
+    }
+  } finally {
+    await pdf.destroy?.();
+  }
+  return items;
+}
+
+// Convert PPTX using JSZip and canvas renderer (adapted from converter.html)
+async function convertPptxFromFile(file, scale = 1, format = 'jpeg'){
+  setStatus(`Converting PPTX: ${file.name}`);
+  const buffer = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+  const ext = format === 'png' ? 'png' : 'jpg';
+  const results = [];
+
+  const parser = new DOMParser();
+  const slides = await getPptxSlideEntries(zip, parser);
+  const slideCount = slides.length;
+  await loadPptxFonts(zip);
+
+  for (let i=0;i<slideCount;i++){
+    setStatus(`Rendering slide ${i+1} of ${slideCount}...`);
+    const blob = await renderSlideToCanvas(zip, slides[i], scale, mimeType);
+    if (blob) results.push({ blob, filename: `slide-${String(i+1).padStart(3,'0')}.${ext}`, pageNumber: i+1 });
+  }
+  if (results.length === 0) throw new Error('Could not extract any slides from this PPTX.');
+  return results.map(r=>{
+    const url = URL.createObjectURL(r.blob);
+    return { name: `${file.name} - slide ${r.pageNumber}`, url, type:mimeType, source:'pptx', pageNumber: r.pageNumber, pages: slideCount, file: null };
+  });
+}
+
+// Helper: render a single slide to canvas blob (from converter)
+async function renderSlideToCanvas(zip, slideRef, scale, mimeType){
+  const slidePath = typeof slideRef === 'object' ? slideRef.path : `ppt/slides/slide${slideRef}.xml`;
+  const relsPath = typeof slideRef === 'object' ? slideRef.relsPath : getPptxRelsPath(slidePath);
+  const slideXml = await zip.file(slidePath)?.async('string');
+  if (!slideXml) return null;
+  const presXml = await zip.file('ppt/presentation.xml')?.async('string');
+  const parser = new DOMParser();
+
+  let slideWidthEmu  = 9144000;
+  let slideHeightEmu = 6858000;
+  if (presXml){
+    const presDoc = parser.parseFromString(presXml, 'application/xml');
+    const sldSz = presDoc.getElementsByTagNameNS(PPTX_PRES_NS, 'sldSz')[0];
+    if (sldSz){ slideWidthEmu  = parseInt(sldSz.getAttribute('cx')) || slideWidthEmu; slideHeightEmu = parseInt(sldSz.getAttribute('cy')) || slideHeightEmu; }
+  }
+
+  const EMU_TO_PX = 96 / 914400;
+  const W = Math.round(slideWidthEmu  * EMU_TO_PX * scale);
+  const H = Math.round(slideHeightEmu * EMU_TO_PX * scale);
+  const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H; const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,W,H);
+  const slideDoc = parser.parseFromString(slideXml, 'application/xml');
+  await applyBackground(ctx, zip, slideDoc, slidePath, relsPath, W, H, scale, parser);
+  await renderImages(ctx, zip, slideDoc, slidePath, relsPath, W, H, slideWidthEmu, slideHeightEmu, scale, parser);
+  renderTextShapes(ctx, slideDoc, W, H, slideWidthEmu, slideHeightEmu, scale);
+  const blob = await canvasToBlob(canvas, mimeType);
+  return blob;
+}
+
+async function applyBackground(ctx, zip, slideDoc, slidePath, relsPath, W, H, scale, parser){
+  const drawNS = PPTX_DRAW_NS;
+  const presNS = PPTX_PRES_NS;
+  const bgElements = slideDoc.getElementsByTagNameNS(presNS, 'bg');
+  if (bgElements.length === 0) { await tryLayoutBackground(ctx, zip, slidePath, relsPath, W, H, parser); return; }
+  const bg = bgElements[0];
+  const solidFill = bg.getElementsByTagNameNS(drawNS, 'solidFill')[0];
+  if (solidFill){ const color = extractColor(solidFill, drawNS); if (color){ ctx.fillStyle = color; ctx.fillRect(0,0,W,H); } }
+  const gradFill = bg.getElementsByTagNameNS(drawNS, 'gradFill')[0];
+  if (gradFill){ const gsLst = gradFill.getElementsByTagNameNS(drawNS, 'gs'); if (gsLst.length>=2){ const grad = ctx.createLinearGradient(0,0,W,H); for (const gs of gsLst){ const pos = parseInt(gs.getAttribute('pos')||'0')/100000; const c = extractColor(gs, drawNS); if (c) grad.addColorStop(pos, c); } ctx.fillStyle = grad; ctx.fillRect(0,0,W,H); } }
+  const blip = bg.getElementsByTagNameNS(drawNS, 'blip')[0];
+  if (blip){
+    const relId = getPptxRelationshipId(blip, 'embed');
+    const relMap = await readPptxRelationships(zip, relsPath, parser);
+    if (relId && relMap[relId]){
+      await drawZipImage(ctx, zip, resolvePptxPath(slidePath, relMap[relId]), 0, 0, W, H);
+    }
+  }
+}
+
+async function tryLayoutBackground(ctx, zip, slidePath, relsPath, W, H, parser){
+  const relsXml = await zip.file(relsPath)?.async('string'); if (!relsXml) return;
+  const relsDoc = parser.parseFromString(relsXml, 'application/xml');
+  const rels = relsDoc.getElementsByTagName('Relationship'); let layoutPath = null;
+  for (const rel of rels){ if ((rel.getAttribute('Type')||'').includes('slideLayout')){ const target = rel.getAttribute('Target')||''; layoutPath = resolvePptxPath(slidePath, target); break; } }
+  if (!layoutPath) return; const layoutXml = await zip.file(layoutPath)?.async('string'); if (!layoutXml) return;
+  const drawNS = PPTX_DRAW_NS; const presNS = PPTX_PRES_NS; const layoutDoc = parser.parseFromString(layoutXml,'application/xml'); const bg = layoutDoc.getElementsByTagNameNS(presNS,'bg')[0]; if (!bg) return; const solidFill = bg.getElementsByTagNameNS(drawNS,'solidFill')[0]; if (solidFill){ const color = extractColor(solidFill, drawNS); if (color){ ctx.fillStyle = color; ctx.fillRect(0,0,W,H); } }
+  const blip = bg.getElementsByTagNameNS(drawNS, 'blip')[0];
+  if (blip){
+    const relId = getPptxRelationshipId(blip, 'embed');
+    const relMap = await readPptxRelationships(zip, getPptxRelsPath(layoutPath), parser);
+    if (relId && relMap[relId]) await drawZipImage(ctx, zip, resolvePptxPath(layoutPath, relMap[relId]), 0, 0, W, H);
+  }
+}
+
+function extractColor(el, drawNS){ const srgb = el.getElementsByTagNameNS(drawNS,'srgbClr')[0]; if (srgb) return '#' + srgb.getAttribute('val'); const preset = el.getElementsByTagNameNS(drawNS,'prstClr')[0]; if (preset){ const presetMap = { white:'#ffffff', black:'#000000', red:'#ff0000', blue:'#0000ff', green:'#008000', yellow:'#ffff00', orange:'#ffa500', purple:'#800080', gray:'#808080', grey:'#808080', lightGray:'#d3d3d3', darkGray:'#a9a9a9', navy:'#000080', teal:'#008080' }; return presetMap[preset.getAttribute('val')] || null; } return null; }
+
+async function renderImages(ctx, zip, slideDoc, slidePath, relsPath, W, H, ewEmu, ehEmu, scale, parser){
+  const drawNS  = PPTX_DRAW_NS;
+  const presNS  = PPTX_PRES_NS;
+  const pics = slideDoc.getElementsByTagNameNS(presNS,'pic'); if (pics.length===0) return;
+  const relMap = await readPptxRelationships(zip, relsPath, parser);
+  const EMU = 1 / 914400 * 96 * scale;
+  for (const pic of pics){ try{ const blipFill = pic.getElementsByTagNameNS(drawNS,'blipFill')[0]; if (!blipFill) continue; const blip = blipFill.getElementsByTagNameNS(drawNS,'blip')[0]; if (!blip) continue; const rId = getPptxRelationshipId(blip, 'embed'); if (!rId) continue; const target = relMap[rId]; if (!target) continue; const mediaPath = resolvePptxPath(slidePath, target);
+      const spPr = pic.getElementsByTagNameNS(drawNS,'spPr')[0] || pic.getElementsByTagNameNS(presNS,'spPr')[0]; if (!spPr) continue;
+      const xfrm = spPr.getElementsByTagNameNS(drawNS,'xfrm')[0]; if (!xfrm) continue;
+      const off = xfrm.getElementsByTagNameNS(drawNS,'off')[0]; const ext = xfrm.getElementsByTagNameNS(drawNS,'ext')[0]; if (!off || !ext) continue;
+      const x = parseInt(off.getAttribute('x')||'0') * EMU; const y = parseInt(off.getAttribute('y')||'0') * EMU; const w = parseInt(ext.getAttribute('cx')||'0') * EMU; const h = parseInt(ext.getAttribute('cy')||'0') * EMU;
+      await drawZipImage(ctx, zip, mediaPath, x, y, w, h);
+    } catch (e) { /* skip */ } }
+}
+
+function normalizePptxTypeface(typeface){
+  const clean = (typeface || '').trim();
+  if (!clean || clean.startsWith('+')) return '';
+  return clean.replace(/["\\]/g, '');
+}
+
+function getTypefaceFromNode(node, drawNS){
+  if (!node) return '';
+  for (const localName of ['latin', 'ea', 'cs', 'sym']){
+    const fontNode = node.getElementsByTagNameNS(drawNS, localName)[0];
+    const typeface = normalizePptxTypeface(fontNode?.getAttribute('typeface'));
+    if (typeface) return typeface;
+  }
+  return '';
+}
+
+function getTextStyleFromProperties(rPr, drawNS, fallback, scale){
+  const style = {...fallback};
+  if (!rPr) return style;
+  const sz = parseInt(rPr.getAttribute('sz') || '', 10);
+  if (Number.isFinite(sz) && sz > 0) style.fontSize = sz / 100 * scale;
+  if (rPr.hasAttribute('b')) style.bold = ['1', 'true'].includes((rPr.getAttribute('b') || '').toLowerCase());
+  if (rPr.hasAttribute('i')) style.italic = ['1', 'true'].includes((rPr.getAttribute('i') || '').toLowerCase());
+  const typeface = getTypefaceFromNode(rPr, drawNS);
+  if (typeface) style.typeface = typeface;
+  const fillEl = rPr.getElementsByTagNameNS(drawNS, 'solidFill')[0];
+  if (fillEl) {
+    const color = extractColor(fillEl, drawNS);
+    if (color) style.color = color;
+  }
+  return style;
+}
+
+function getRunText(run, drawNS){
+  return Array.from(run.getElementsByTagNameNS(drawNS, 't')).map(t => t.textContent || '').join('');
+}
+
+function buildCanvasFont(style){
+  const family = style.typeface
+    ? `"${style.typeface}", "Segoe UI", Arial, sans-serif`
+    : '"Segoe UI", Arial, sans-serif';
+  const fontStyle = style.italic ? 'italic ' : '';
+  const weight = style.bold ? '700' : '400';
+  return `${fontStyle}${weight} ${Math.max(style.fontSize, 8)}px ${family}`;
+}
+
+function collectPptxFontsFromXml(xml, families){
+  for (const match of xml.matchAll(/\btypeface="([^"]+)"/g)){
+    const typeface = normalizePptxTypeface(match[1]);
+    if (typeface) families.add(typeface);
+  }
+}
+
+async function loadPptxFonts(zip){
+  if (!document.fonts) return;
+  const families = new Set();
+  const xmlPaths = Object.keys(zip.files).filter(path =>
+    (/^ppt\/(slides|slideLayouts|slideMasters)\//.test(path) && path.endsWith('.xml')) || path === 'ppt/presentation.xml'
+  );
+  for (const path of xmlPaths){
+    const file = zip.file(path);
+    if (!file) continue;
+    try {
+      collectPptxFontsFromXml(await file.async('string'), families);
+    } catch {
+      // Ignore unreadable non-slide parts.
+    }
+  }
+
+  const loads = [];
+  for (const family of families){
+    if (loadedPptxFontFamilies.has(family)) continue;
+    loadedPptxFontFamilies.add(family);
+    loads.push(document.fonts.load(`400 24px "${family}"`));
+    loads.push(document.fonts.load(`700 24px "${family}"`));
+    loads.push(document.fonts.load(`italic 400 24px "${family}"`));
+    loads.push(document.fonts.load(`italic 700 24px "${family}"`));
+  }
+  if (!loads.length) return;
+  await Promise.race([
+    Promise.allSettled(loads),
+    new Promise(resolve => setTimeout(resolve, 1600))
+  ]);
+}
+
+function renderTextShapes(ctx, slideDoc, W, H, ewEmu, ehEmu, scale){
+  const drawNS = PPTX_DRAW_NS;
+  const presNS = PPTX_PRES_NS;
+  const EMU    = 1 / 914400 * 96 * scale;
+  const shapes = slideDoc.getElementsByTagNameNS(presNS, 'sp');
+  for (const sp of shapes){
+    try{
+      const spPr = sp.getElementsByTagNameNS(drawNS,'spPr')[0] || sp.getElementsByTagNameNS(presNS,'spPr')[0];
+      const txBody = sp.getElementsByTagNameNS(presNS,'txBody')[0] || sp.getElementsByTagNameNS(drawNS,'txBody')[0];
+      if (!spPr || !txBody) continue;
+      const xfrm = spPr.getElementsByTagNameNS(drawNS,'xfrm')[0];
+      if (!xfrm) continue;
+      const off = xfrm.getElementsByTagNameNS(drawNS,'off')[0];
+      const ext = xfrm.getElementsByTagNameNS(drawNS,'ext')[0];
+      if (!off || !ext) continue;
+
+      const x = parseInt(off.getAttribute('x')||'0') * EMU;
+      const y = parseInt(off.getAttribute('y')||'0') * EMU;
+      const w = parseInt(ext.getAttribute('cx')||'0') * EMU;
+      const h = parseInt(ext.getAttribute('cy')||'0') * EMU;
+      const solidFill = spPr.getElementsByTagNameNS(drawNS,'solidFill')[0];
+      if (solidFill){
+        const color = extractColor(solidFill, drawNS);
+        if (color){ ctx.fillStyle = color; ctx.fillRect(x,y,w,h); }
+      }
+
+      const paras = txBody.getElementsByTagNameNS(drawNS,'p');
+      let curY = y + 4 * scale;
+      const baseStyle = {fontSize:18 * scale, bold:false, italic:false, color:'#222222', typeface:''};
+      for (const para of paras){
+        const runs = para.getElementsByTagNameNS(drawNS,'r');
+        if (runs.length===0){ curY += 14 * scale; continue; }
+        const endParaRPr = para.getElementsByTagNameNS(drawNS, 'endParaRPr')[0];
+        const paraStyle = getTextStyleFromProperties(endParaRPr, drawNS, baseStyle, scale);
+        const fragments = [];
+
+        for (const run of runs){
+          const text = getRunText(run, drawNS);
+          if (!text) continue;
+          const rPr = run.getElementsByTagNameNS(drawNS,'rPr')[0];
+          fragments.push({text, style:getTextStyleFromProperties(rPr, drawNS, paraStyle, scale)});
+        }
+
+        const paraText = fragments.map(fragment => fragment.text).join('');
+        const textStyle = fragments.find(fragment => fragment.text.trim())?.style || paraStyle;
+        if (!paraText.trim()){ curY += textStyle.fontSize * 1.2; continue; }
+
+        ctx.save();
+        ctx.font = buildCanvasFont(textStyle);
+        ctx.fillStyle = textStyle.color;
+        ctx.textBaseline = 'top';
+        const words = paraText.split(/\s+/);
+        let line = '';
+        const lineHeight = textStyle.fontSize * 1.35;
+        for (const word of words){
+          const test = line ? line + ' ' + word : word;
+          const metrics = ctx.measureText(test);
+          if (metrics.width > w - 8 * scale && line){
+            if (curY + lineHeight < y + h){
+              ctx.fillText(line, x + 4 * scale, curY);
+              curY += lineHeight;
+            }
+            line = word;
+          } else {
+            line = test;
+          }
+        }
+        if (line && curY + lineHeight < y + h){
+          ctx.fillText(line, x + 4 * scale, curY);
+          curY += lineHeight;
+        }
+        ctx.restore();
+      }
+    } catch(e){ /* skip */ }
+  }
 }
 
 function setStatus(message){
@@ -207,6 +744,104 @@ function normalizePptxPath(base, relative){
     else if (segment && segment !== '.') parts.push(segment);
   }
   return parts.join('/');
+}
+
+function resolvePptxPath(base, target){
+  const clean = (target || '').replace(/\\/g,'/').split('#')[0];
+  if (!clean) return '';
+  if (clean.startsWith('/')) return clean.slice(1);
+  if (clean.startsWith('ppt/')) return clean;
+  return normalizePptxPath(base, clean);
+}
+
+function getPptxRelsPath(partPath){
+  const clean = partPath.replace(/\\/g,'/');
+  const slash = clean.lastIndexOf('/');
+  const dir = slash === -1 ? '' : clean.slice(0, slash);
+  const filename = slash === -1 ? clean : clean.slice(slash + 1);
+  return dir ? `${dir}/_rels/${filename}.rels` : `_rels/${filename}.rels`;
+}
+
+function getPptxRelationshipId(node, name){
+  return node.getAttributeNS(PPTX_REL_NS, name) || node.getAttribute(`r:${name}`) || node.getAttribute(name);
+}
+
+async function readPptxRelationships(zip, relsPath, parser){
+  const relsXml = await zip.file(relsPath)?.async('string');
+  if (!relsXml) return {};
+  const relsDoc = parser.parseFromString(relsXml, 'application/xml');
+  const map = {};
+  for (const rel of getElementsByTagNameAnyNS(relsDoc, 'Relationship')){
+    const id = rel.getAttribute('Id');
+    const target = rel.getAttribute('Target');
+    if (id && target) map[id] = target;
+  }
+  return map;
+}
+
+function getPptxSlideRelIds(presDoc, presXml){
+  let ids = getElementsByTagNameAnyNS(presDoc, 'sldId')
+    .map(node => node.getAttributeNS(PPTX_REL_NS, 'id') || node.getAttribute('r:id'))
+    .filter(Boolean);
+  if (!ids.length) ids = Array.from(presXml.matchAll(/<[^>]*sldId[^>]*\sr:id="([^"]+)"/g), m => m[1]);
+  return ids;
+}
+
+function getPptxSlideNumber(path){
+  return parseInt(/\/slide(\d+)\.xml$/i.exec(path)?.[1] || '0', 10);
+}
+
+async function getPptxSlideEntries(zip, parser){
+  const presXml = await zip.file('ppt/presentation.xml')?.async('string');
+  if (!presXml) throw new Error('Not a valid PPTX file (missing ppt/presentation.xml)');
+  const presDoc = parser.parseFromString(presXml, 'application/xml');
+  const slideRelIds = getPptxSlideRelIds(presDoc, presXml);
+  const relMap = await readPptxRelationships(zip, 'ppt/_rels/presentation.xml.rels', parser);
+  let entries = slideRelIds
+    .map(relId => relMap[relId] ? resolvePptxPath('ppt/presentation.xml', relMap[relId]) : '')
+    .filter(path => path && zip.file(path))
+    .map(path => ({ path, relsPath: getPptxRelsPath(path) }));
+
+  if (!entries.length) {
+    entries = Object.keys(zip.files)
+      .filter(path => /^ppt\/slides\/slide\d+\.xml$/i.test(path))
+      .sort((a,b)=>getPptxSlideNumber(a)-getPptxSlideNumber(b))
+      .map(path => ({ path, relsPath: getPptxRelsPath(path) }));
+  }
+  if (!entries.length) throw new Error('No slides found in this PPTX.');
+  return entries;
+}
+
+function getImageMimeFromPath(path){
+  const ext = path.split('.').pop().toLowerCase();
+  if (ext === 'png') return 'image/png';
+  if (ext === 'gif') return 'image/gif';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'svg') return 'image/svg+xml';
+  if (ext === 'bmp') return 'image/bmp';
+  return 'image/jpeg';
+}
+
+async function drawZipImage(ctx, zip, imagePath, x, y, width, height){
+  if (!imagePath || width <= 0 || height <= 0) return false;
+  const mediaFile = zip.file(imagePath);
+  if (!mediaFile) return false;
+  const imgBytes = await mediaFile.async('uint8array');
+  const imgBlob = new Blob([imgBytes], { type: getImageMimeFromPath(imagePath) });
+  const imgUrl = URL.createObjectURL(imgBlob);
+  return new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=>{
+      ctx.drawImage(img, x, y, width, height);
+      URL.revokeObjectURL(imgUrl);
+      resolve(true);
+    };
+    img.onerror = ()=>{
+      URL.revokeObjectURL(imgUrl);
+      resolve(false);
+    };
+    img.src = imgUrl;
+  });
 }
 
 function emuToPx(value){
@@ -276,147 +911,7 @@ async function createImageFromZip(zip, target){
 }
 
 async function extractPptxSlides(file){
-  if (!window.JSZip) throw new Error('JSZip is unavailable');
-  const zip = await JSZip.loadAsync(file);
-  const presFile = zip.file('ppt/presentation.xml');
-  if (!presFile) throw new Error('presentation.xml missing');
-  const presXml = await presFile.async('string');
-  const presDoc = parseXmlString(presXml);
-  let slideRefs = getElementsByTagNameAnyNS(presDoc, 'sldId').map(node => node.getAttribute('r:id')).filter(Boolean);
-  if (!slideRefs.length) {
-    slideRefs = Array.from(presXml.matchAll(/<p:sldId[^>]+r:id="([^"]+)"/g), m => m[1]);
-  }
-  const relsFile = zip.file('ppt/_rels/presentation.xml.rels');
-  if (!relsFile) throw new Error('presentation rels missing');
-  const relsXml = await relsFile.async('string');
-  const relsDoc = parseXmlString(relsXml);
-  const items = [];
-
-  for (let i=0;i<slideRefs.length;i++){
-    const relId = slideRefs[i];
-    let rel = Array.from(getElementsByTagNameAnyNS(relsDoc, 'Relationship')).find(node => node.getAttribute('Id') === relId);
-    if (!rel) {
-      const relMatch = new RegExp(`<Relationship[^>]+Id="${relId}"[^>]+Target="([^"]+)"`).exec(relsXml);
-      if (relMatch) {
-        const stub = document.createElement('div');
-        stub.setAttribute('Id', relId);
-        stub.setAttribute('Target', relMatch[1]);
-        rel = stub;
-      }
-    }
-    if (!rel) continue;
-    const target = rel.getAttribute('Target').replace(/^\//,'');
-    const slideFile = zip.file(`ppt/${target}`);
-    if (!slideFile) continue;
-    const slideXml = await slideFile.async('string');
-    const slideDoc = parseXmlString(slideXml);
-    const relsPath = target.replace(/[^/]+$/, '_rels/$&.rels').replace(/\.xml$/, '.xml.rels');
-    const slideRelFile = zip.file(`ppt/${relsPath}`);
-    const slideRelsXml = slideRelFile ? await slideRelFile.async('string').catch(()=>null) : null;
-    const slideRelsDoc = slideRelsXml ? parseXmlString(slideRelsXml) : null;
-    const imagePromises = [];
-    const width = 1280;
-    const height = 720;
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-
-    const bg = getElementByTagNameAnyNS(slideDoc, 'bg');
-    const bgBlip = bg ? getElementByTagNameAnyNS(bg, 'blip') : null;
-    let backgroundDrawn = false;
-    if (bgBlip && slideRelsDoc) {
-      const embed = bgBlip.getAttribute('r:id');
-      if (embed) {
-        const bgRel = Array.from(getElementsByTagNameAnyNS(slideRelsDoc, 'Relationship')).find(node => node.getAttribute('Id') === embed);
-        if (bgRel) {
-          const targetImage = bgRel.getAttribute('Target').replace(/^\//,'');
-          const bgTarget = targetImage.startsWith('ppt/') ? targetImage : normalizePptxPath(`ppt/${target}`, targetImage);
-          const src = await createImageFromZip(zip, bgTarget);
-          if (src) {
-            await new Promise(resolve => {
-              const img = new Image();
-              img.onload = ()=>{ ctx.drawImage(img, 0, 0, width, height); resolve(); };
-              img.onerror = ()=> resolve();
-              img.src = src;
-            });
-            backgroundDrawn = true;
-          }
-        }
-      }
-    }
-    if (!backgroundDrawn) {
-      ctx.fillStyle = getSlideBackgroundColor(slideDoc);
-      ctx.fillRect(0,0,width,height);
-    }
-
-    if (slideRelsDoc) {
-      const picNodes = getElementsByTagNameAnyNS(slideDoc, 'pic');
-      picNodes.forEach(pic => {
-        const blip = getElementByTagNameAnyNS(pic, 'blip');
-        const bounds = getShapeBounds(pic);
-        if (!blip || !bounds) return;
-        const embed = blip.getAttribute('r:id');
-        if (!embed) return;
-        const picRel = Array.from(getElementsByTagNameAnyNS(slideRelsDoc, 'Relationship')).find(node => node.getAttribute('Id') === embed);
-        if (!picRel) return;
-        const targetImage = picRel.getAttribute('Target').replace(/^\//,'');
-        const imageTarget = targetImage.startsWith('ppt/') ? targetImage : normalizePptxPath(`ppt/${target}`, targetImage);
-        imagePromises.push(createImageFromZip(zip,imageTarget).then(src=>{
-          if (!src) return;
-          return new Promise(resolve => {
-            const img = new Image();
-            img.onload = ()=>{ ctx.drawImage(img,bounds.x,bounds.y,bounds.width,bounds.height); resolve(); };
-            img.onerror = ()=> resolve();
-            img.src = src;
-          });
-        }));
-      });
-    }
-
-    await Promise.all(imagePromises);
-
-    const shapes = getElementsByTagNameAnyNS(slideDoc, 'sp');
-    shapes.forEach(shape => {
-      const bounds = getShapeBounds(shape) || {x:40,y:40,width:width-80,height:height-80};
-      const fillColor = getSolidFillColor(shape);
-      if (fillColor) {
-        ctx.fillStyle = fillColor;
-        ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-      }
-      const text = collectSlideText(shape);
-      if (!text) return;
-      ctx.fillStyle = '#fff';
-      ctx.textBaseline = 'top';
-      ctx.font = 'bold 30px system-ui';
-      const words = text.split(/\s+/);
-      const lineHeight = 34;
-      let line = '';
-      let y = bounds.y + 10;
-      for (const word of words) {
-        const test = line ? `${line} ${word}` : word;
-        if (ctx.measureText(test).width > bounds.width - 20 && line) {
-          ctx.fillText(line, bounds.x + 10, y);
-          line = word;
-          y += lineHeight;
-          if (y > bounds.y + bounds.height - lineHeight - 10) break;
-        } else {
-          line = test;
-        }
-      }
-      if (line && y <= bounds.y + bounds.height - lineHeight - 10) ctx.fillText(line, bounds.x + 10, y);
-    });
-
-    items.push({
-      name:`${file.name} - slide ${i+1}`,
-      url:canvas.toDataURL('image/png'),
-      type:'image/pptx',
-      source:'pptx',
-      pageNumber:i+1,
-      pages:slideRefs.length
-    });
-  }
-  return items;
+  return convertPptxFromFile(file, 1, 'jpeg');
 }
 
 async function processMediaFile(file){
@@ -424,21 +919,21 @@ async function processMediaFile(file){
   try {
     if (lower.endsWith('.pdf')){
       setStatus(`Loading PDF: ${file.name}`);
-      const pages = await extractPdfPages(file);
+      const pages = await convertPdfFromFile(file, 1.5, 'jpeg');
       if (pages.length){
         media.push(...pages);
       } else {
-        console.warn('PDF extraction produced no pages for', file.name);
+        console.warn('PDF conversion produced no pages for', file.name);
         media.push({name:file.name,type:'image/pdf',url:'',source:'pdf',pageNumber:0,pages:0});
       }
       renderQueues();
     } else if (lower.endsWith('.pptx')){
       setStatus(`Loading PPTX: ${file.name}`);
-      const slides = await extractPptxSlides(file);
+      const slides = await convertPptxFromFile(file, 1, 'jpeg');
       if (slides.length){
         media.push(...slides);
       } else {
-        console.warn('PPTX extraction produced no slides for', file.name);
+        console.warn('PPTX conversion produced no slides for', file.name);
         media.push({name:file.name,type:'image/pptx',url:'',source:'pptx',pageNumber:0,pages:0});
       }
       renderQueues();
@@ -560,11 +1055,22 @@ musicFiles.addEventListener('change', e=>{
   const files = Array.from(e.target.files);
   files.forEach(f=>{
     const url = URL.createObjectURL(f);
-    const item = {name:f.name,url,type:f.type,file:f, durationFormatted:'Loading...'};
+    const item = {name:f.name,url, type:f.type,file:f, durationFormatted:'Loading...'};
     songs.push(item);
     loadFileMetadata(item, renderQueues);
   });
   renderQueues();
+});
+
+soundboardFiles.addEventListener('change', e=>{
+  const files = Array.from(e.target.files);
+  files.forEach(f=>{
+    const url = URL.createObjectURL(f);
+    const item = {name:f.name,url, type:f.type,file:f, durationFormatted:'Loading...'};
+    soundboardSounds.push(item);
+    loadFileMetadata(item, renderSoundboardGrid);
+  });
+  renderSoundboardGrid();
 });
 
 function renderMusicQueue(){
@@ -574,6 +1080,23 @@ function renderMusicQueue(){
     musicQueue.appendChild(li);
   });
   updateQueueProgress('music');
+}
+
+function renderSoundboardGrid(){
+  if (!soundboardGrid) return;
+  soundboardGrid.innerHTML = '';
+  soundboardSounds.forEach((s,i)=>{
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'soundboard-button';
+    button.textContent = s.name;
+    button.addEventListener('click', ()=>{
+      const sound = new Audio(s.url);
+      sound.volume = parseFloat(masterVolume.value) || 1;
+      sound.play().catch(()=>{});
+    });
+    soundboardGrid.appendChild(button);
+  });
 }
 
 function playSongAt(i){
@@ -600,6 +1123,15 @@ musicShuffleButton.addEventListener('click', ()=>{
   songs = songs.sort(()=>Math.random()-0.5);
   currentSongIndex = currentSong ? songs.indexOf(currentSong) : -1;
   renderMusicQueue();
+});
+
+// Music previous/next navigation
+musicPrev.addEventListener('click', ()=>{
+  if (currentSongIndex > 0) playSongAt(currentSongIndex - 1);
+});
+musicNext.addEventListener('click', ()=>{
+  if (currentSongIndex < songs.length - 1) playSongAt(currentSongIndex + 1);
+  else if (currentSongIndex === -1 && songs.length) playSongAt(0);
 });
 
 musicAudio.addEventListener('timeupdate', ()=>{
@@ -808,6 +1340,15 @@ mediaPause.addEventListener('click', ()=>{
   mediaProgressStart = 0;
   sendMediaControlToDisplay('pause');
   updateButtonStates();
+});
+
+// Media previous/next navigation
+mediaPrev.addEventListener('click', ()=>{
+  if (currentMediaIndex > 0) showMediaAt(currentMediaIndex - 1);
+});
+mediaNext.addEventListener('click', ()=>{
+  if (currentMediaIndex < media.length - 1) showMediaAt(currentMediaIndex + 1);
+  else if (currentMediaIndex === -1 && media.length) showMediaAt(0);
 });
 
 function stopMediaLoop(){
