@@ -6,7 +6,7 @@ body{margin:0;background:#101010;color:#eee}
 .page-nav{display:flex;gap:0;background:#0a0a0a;border-top:1px solid #222;flex-shrink:0}
 .page-tab{flex:1;padding:14px 20px;background:#0a0a0a;color:#888;border:none;border-top:2px solid transparent;border-radius:0;cursor:pointer;font-size:.9rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;transition:color .2s,border-color .2s,background .2s}
 .page-tab:hover{color:#ccc;background:#111;border-top-color:#333}
-.page-tab--active{color:#eee;border-top-color:#2a8;background:#111}
+.page-tab--active{color:#eee;border-top-color:#482b72;background:#111}
 
 /* ===== PAGE CONTAINERS ===== */
 .page{display:flex;flex:1 1 auto;min-height:0;gap:16px;padding:16px;overflow:auto}
@@ -22,9 +22,9 @@ body{margin:0;background:#101010;color:#eee}
 /* ===== CONTROL PANEL LAYOUT ===== */
 .cp-top-row{display:flex;gap:12px;flex:0 0 auto;min-height:0}
 .cp-top-row .panel{padding:10px 14px;border-radius:14px}
-.cp-top-row .app-banner-button{height:42px;padding:6px;border-radius:10px}
-.cp-top-row .by-magmalabs-banner{height:36px;padding:6px;border-radius:10px}
-.cp-top-row .kofi-button{height:36px;flex:0 0 36px;border-radius:10px}
+.cp-top-row .app-banner-button{height:60px;padding:6px;border-radius:10px}
+.cp-top-row .by-magmalabs-banner{height:60px;padding:6px;border-radius:10px}
+.cp-top-row .kofi-button{height:60px;flex:0 0 60px;border-radius:10px}
 
 .cp-bottom-row{display:flex;gap:12px;flex:1 1 auto;min-height:0;overflow:hidden}
 .cp-panel{display:flex;flex-direction:column;min-height:0;overflow:hidden}
