@@ -1,24 +1,22 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Event Control Panel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;700&family=Saira:ital,wght@0,400;0,700;1,400;1,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;700&family=Saira:ital,wght@0,400;0,700;1,400;1,700&family=Space+Mono:wght@400;700&display=swap"
+    rel="stylesheet">
   <link rel="icon" href="ecp-logo.png" type="image/png">
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
   <div id="app">
 
-    <!-- Page Navigation Tabs -->
-    <nav class="page-nav">
-      <button id="tabAudio" class="page-tab" data-page="audioPage" type="button">Audio</button>
-      <button id="tabControl" class="page-tab page-tab--active" data-page="controlPage" type="button">Control Panel</button>
-      <button id="tabSlides" class="page-tab" data-page="slidesPage" type="button">Slides</button>
-    </nav>
 
     <!-- ===== AUDIO PAGE ===== -->
     <div id="audioPage" class="page page--hidden">
@@ -40,12 +38,17 @@
           </label>
           <button id="musicShuffle" class="action-button">Shuffle</button>
         </div>
+        <div class="row wrap" style="margin-top: 10px; gap: 12px; font-size: 0.9rem;">
+          <label><input id="musicPlayOnFinish" type="checkbox" checked> Play on finish</label>
+          <label><input id="musicTransition" type="checkbox" checked> Audio crossfade</label>
+        </div>
         <div class="row">
           <label>Music volume: <input id="musicVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
         </div>
         <div class="file-input-box">
           <input id="musicFiles" type="file" accept="audio/*" multiple aria-describedby="musicFileTypes">
-          <div id="musicFileTypes" class="file-type-list">Supported: MP3, WAV, OGG, M4A, AAC, FLAC, and other browser-playable audio files.</div>
+          <div id="musicFileTypes" class="file-type-list">Supported: MP3, WAV, OGG, M4A, AAC, FLAC, and other
+            browser-playable audio files.</div>
         </div>
       </section>
 
@@ -53,10 +56,12 @@
         <h3>Soundboard</h3>
         <div class="file-input-box">
           <input id="soundboardFiles" type="file" accept="audio/*" multiple aria-describedby="soundboardFileTypes">
-          <div id="soundboardFileTypes" class="file-type-list">Supported: MP3, WAV, OGG, M4A, AAC, FLAC, and other browser-playable audio files.</div>
+          <div id="soundboardFileTypes" class="file-type-list">Supported: MP3, WAV, OGG, M4A, AAC, FLAC, and other
+            browser-playable audio files.</div>
         </div>
         <div class="row">
-          <label>Soundboard volume: <input id="soundboardVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+          <label>Soundboard volume: <input id="soundboardVolume" type="range" min="0" max="1" step="0.01"
+              value="1"></label>
         </div>
         <div id="soundboardGrid" class="soundboard-grid"></div>
       </section>
@@ -78,7 +83,8 @@
               <a class="by-magmalabs-banner" href="https://magmalabs.dev/" target="_blank" rel="noopener">
                 <img src="by-magmalabs.png" alt="By MagmaLabs">
               </a>
-              <a class="kofi-button" href="https://ko-fi.com/magmalabs" target="_blank" rel="noopener" aria-label="Support MagmaLabs on Ko-fi">
+              <a class="kofi-button" href="https://ko-fi.com/magmalabs" target="_blank" rel="noopener"
+                aria-label="Support MagmaLabs on Ko-fi">
                 <img src="kofi.png" alt="Ko-fi">
               </a>
             </div>
@@ -91,14 +97,17 @@
               <h3>Session</h3>
               <div class="row wrap">
                 <label>Loaded preset:<br>
-                  <select id="presetSelect"><option value="">No presets loaded</option></select>
+                  <select id="presetSelect">
+                    <option value="">No presets loaded</option>
+                  </select>
                 </label>
                 <button id="ecpExport" class="action-button">Export preset</button>
                 <button id="ecpExportAll" class="action-button">Export all</button>
               </div>
               <div class="row wrap">
                 <label class="file-label">Import preset(s)<br>
-                  <input id="ecpImportFile" type="file" accept=".ecp,.json,application/json" multiple aria-describedby="ecpFileTypes">
+                  <input id="ecpImportFile" type="file" accept=".ecp,.json,application/json" multiple
+                    aria-describedby="ecpFileTypes">
                   <span id="ecpFileTypes" class="file-type-list">Supported: ECP session (.ecp), JSON (.json).</span>
                 </label>
               </div>
@@ -107,8 +116,10 @@
               <h3>Intercom</h3>
               <div class="row">
                 <div class="mode-buttons">
-                  <label class="mode-button"><input type="radio" name="mode" value="live" checked><span>Live</span></label>
-                  <label class="mode-button"><input type="radio" name="mode" value="recorded"><span>Recorded</span></label>
+                  <label class="mode-button"><input type="radio" name="mode" value="live"
+                      checked><span>Live</span></label>
+                  <label class="mode-button"><input type="radio" name="mode"
+                      value="recorded"><span>Recorded</span></label>
                 </div>
                 <div class="field-group">
                   <label>Vol: <input id="intercomVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
@@ -129,7 +140,41 @@
 
         <section id="stopwatchPanel" class="panel cp-panel cp-stopwatch">
           <h3>Stopwatch / Timer / Clock</h3>
-          <div id="time" class="cp-clock">--:--:--</div>
+
+          <!-- Mode Tabs -->
+          <div class="clock-mode-tabs">
+            <button id="btnClockMode" class="clock-mode-tab active" type="button">Clock</button>
+            <button id="btnStopwatchMode" class="clock-mode-tab" type="button">Stopwatch</button>
+            <button id="btnTimerMode" class="clock-mode-tab" type="button">Timer</button>
+          </div>
+
+          <!-- Clock Display -->
+          <div id="clockDisplay" class="clock-display-content">
+            <div id="time" class="cp-clock">--:--:--</div>
+          </div>
+
+          <!-- Stopwatch Display -->
+          <div id="stopwatchDisplay" class="clock-display-content hidden">
+            <div id="stopwatchTime" class="cp-clock">00:00.0</div>
+            <div class="clock-controls">
+              <button id="btnStopwatchStart" class="action-button" type="button">Start</button>
+              <button id="btnStopwatchReset" class="action-button" type="button">Reset</button>
+            </div>
+          </div>
+
+          <!-- Timer Display -->
+          <div id="timerDisplay" class="clock-display-content hidden">
+            <div id="timerTime" class="cp-clock">05:00</div>
+            <div class="timer-settings">
+              <input id="timerInputMin" type="number" min="0" max="99" value="5" placeholder="Min" class="timer-input">
+              <span>:</span>
+              <input id="timerInputSec" type="number" min="0" max="59" value="0" placeholder="Sec" class="timer-input">
+            </div>
+            <div class="clock-controls">
+              <button id="btnTimerStart" class="action-button" type="button">Start</button>
+              <button id="btnTimerReset" class="action-button" type="button">Reset</button>
+            </div>
+          </div>
         </section>
 
       </div>
@@ -140,6 +185,7 @@
         <section id="cpMusicPanel" class="panel cp-panel cp-music-mini">
           <h3>Music</h3>
           <div id="cpCurrentSong" class="cp-now-playing">No song</div>
+          <div id="cpMusicProgression" class="cp-progression">0:00 / 0:00</div>
           <div class="cp-mini-controls">
             <button id="cpMusicPlay" class="action-button">Autoplay</button>
             <button id="cpMusicNext" class="action-button">Next</button>
@@ -150,6 +196,10 @@
           </div>
           <div>
             <label>Vol: <input id="cpMusicVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+          </div>
+          <div class="row wrap" style="margin-top: 6px; gap: 8px; font-size: 0.75rem;">
+            <label><input id="cpMusicPlayOnFinish" type="checkbox" checked> Play on finish</label>
+            <label><input id="cpMusicTransition" type="checkbox" checked> Crossfade</label>
           </div>
         </section>
 
@@ -162,6 +212,10 @@
           <div class="cp-mini-controls">
             <button id="cpMediaNext" class="action-button">Next</button>
             <button id="cpMediaPrev" class="action-button">Prev</button>
+          </div>
+          <div class="row wrap" style="margin-top: 4px; gap: 8px; font-size: 0.75rem; margin-bottom: 4px;">
+            <label><input id="cpMediaPlayOnFinish" type="checkbox" checked> Play on finish</label>
+            <label><input id="cpMediaTransition" type="checkbox" checked> Fade</label>
           </div>
           <div id="cpNotesRow" class="cp-notes-mini">
             <textarea id="cpMediaNotes" rows="2" placeholder="Notes" disabled></textarea>
@@ -202,21 +256,27 @@
             </select>
           </label>
           <label>Transition (s): <input id="transitionTime" type="number" min="1" value="5"></label>
-        </div>
-        <div class="row wrap">
-          <label><input id="mediaMuteAudio" type="checkbox" checked> Mute video audio</label>
-        </div>
-        <div id="mediaNotesCard" class="media-notes-card">
-          <label for="mediaNotes">Selected slide notes</label>
-          <textarea id="mediaNotes" rows="4" placeholder="Select an image or slide to edit notes" disabled></textarea>
-        </div>
-        <div class="file-input-box">
-          <input id="mediaFiles" type="file" accept="image/*,video/*,.pdf,application/pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple aria-describedby="mediaFileTypes">
-          <div id="mediaFileTypes" class="file-type-list">Supported: images, videos, PDF pages (.pdf), and PowerPoint slides (.pptx).</div>
-        </div>
-        <div class="open-display-row">
-          <button id="openDisplay">Open Display Window</button>
-        </div>
+          <div class="row wrap" style="margin-top: 10px; gap: 12px; font-size: 0.9rem;">
+            <label><input id="mediaPlayOnFinish" type="checkbox" checked> Play on finish</label>
+            <label><input id="mediaTransition" type="checkbox" checked> Fade transition</label>
+          </div>
+          <div class="row wrap">
+            <label><input id="mediaMuteAudio" type="checkbox" checked> Mute video audio</label>
+          </div>
+          <div id="mediaNotesCard" class="media-notes-card">
+            <label for="mediaNotes">Selected slide notes</label>
+            <textarea id="mediaNotes" rows="4" placeholder="Select an image or slide to edit notes" disabled></textarea>
+          </div>
+          <div class="file-input-box">
+            <input id="mediaFiles" type="file"
+              accept="image/*,video/*,.pdf,application/pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+              multiple aria-describedby="mediaFileTypes">
+            <div id="mediaFileTypes" class="file-type-list">Supported: images, videos, PDF pages (.pdf), and PowerPoint
+              slides (.pptx).</div>
+          </div>
+          <div class="open-display-row">
+            <button id="openDisplay">Open Display Window</button>
+          </div>
       </section>
 
       <section class="panel presenter-section">
@@ -225,11 +285,13 @@
           <h4>Mirror Display</h4>
           <div id="mediaMirrorContent" class="mirror-content">Nothing displayed</div>
           <div id="mediaPreviewRow" class="media-preview-row">
-            <button id="mediaPrevPreview" class="media-preview preview-prev" type="button" aria-label="Previous slide preview" disabled>
+            <button id="mediaPrevPreview" class="media-preview preview-prev" type="button"
+              aria-label="Previous slide preview" disabled>
               <div class="preview-label">Previous</div>
               <div class="preview-content">No preview</div>
             </button>
-            <button id="mediaNextPreview" class="media-preview preview-next" type="button" aria-label="Next slide preview" disabled>
+            <button id="mediaNextPreview" class="media-preview preview-next" type="button"
+              aria-label="Next slide preview" disabled>
               <div class="preview-label">Next</div>
               <div class="preview-content">No preview</div>
             </button>
@@ -242,9 +304,18 @@
       </section>
     </div>
 
+
+    <!-- Page Navigation Tabs -->
+    <nav class="page-nav">
+      <button id="tabAudio" class="page-tab" data-page="audioPage" type="button">Audio</button>
+      <button id="tabControl" class="page-tab page-tab--active" data-page="controlPage" type="button">Control
+        Panel</button>
+      <button id="tabSlides" class="page-tab" data-page="slidesPage" type="button">Slides</button>
+    </nav>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="app.js"></script>
 </body>
+
 </html>

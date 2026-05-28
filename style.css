@@ -3,10 +3,10 @@ body{margin:0;background:#101010;color:#eee}
 #app{display:flex;flex-direction:column;height:100vh;overflow:hidden;gap:0;padding:0;max-width:1400px;margin:0 auto}
 
 /* ===== PAGE NAV TABS ===== */
-.page-nav{display:flex;gap:0;background:#0a0a0a;border-bottom:1px solid #222;flex-shrink:0}
-.page-tab{flex:1;padding:14px 20px;background:#0a0a0a;color:#888;border:none;border-bottom:2px solid transparent;border-radius:0;cursor:pointer;font-size:.9rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;transition:color .2s,border-color .2s,background .2s}
-.page-tab:hover{color:#ccc;background:#111;border-bottom-color:#333}
-.page-tab--active{color:#eee;border-bottom-color:#2a8;background:#111}
+.page-nav{display:flex;gap:0;background:#0a0a0a;border-top:1px solid #222;flex-shrink:0}
+.page-tab{flex:1;padding:14px 20px;background:#0a0a0a;color:#888;border:none;border-top:2px solid transparent;border-radius:0;cursor:pointer;font-size:.9rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;transition:color .2s,border-color .2s,background .2s}
+.page-tab:hover{color:#ccc;background:#111;border-top-color:#333}
+.page-tab--active{color:#eee;border-top-color:#2a8;background:#111}
 
 /* ===== PAGE CONTAINERS ===== */
 .page{display:flex;flex:1 1 auto;min-height:0;gap:16px;padding:16px;overflow:auto}
@@ -21,20 +21,55 @@ body{margin:0;background:#101010;color:#eee}
 
 /* ===== CONTROL PANEL LAYOUT ===== */
 .cp-top-row{display:flex;gap:12px;flex:0 0 auto;min-height:0}
+.cp-top-row .panel{padding:10px 14px;border-radius:14px}
+.cp-top-row .app-banner-button{height:42px;padding:6px;border-radius:10px}
+.cp-top-row .by-magmalabs-banner{height:36px;padding:6px;border-radius:10px}
+.cp-top-row .kofi-button{height:36px;flex:0 0 36px;border-radius:10px}
+
 .cp-bottom-row{display:flex;gap:12px;flex:1 1 auto;min-height:0;overflow:hidden}
 .cp-panel{display:flex;flex-direction:column;min-height:0;overflow:hidden}
-.cp-logo-banners{flex:0 0 200px}
+.cp-logo-banners{flex:0 0 300px}
 .cp-session-intercom{flex:1 1 0}
-.cp-stopwatch{flex:0 0 210px;align-items:center;justify-content:center}
-.cp-music-mini{flex:1 1 0}
+.cp-stopwatch{flex:0 0 315px;align-items:center;justify-content:flex-start;transition:background 0.3s ease}
+.cp-music-mini{flex:0 0 300px}
 .cp-slides-mini{flex:1 1 0}
-.cp-blank{flex:0 0 180px}
+.cp-blank{flex:0 0 315px}
 
 .cp-clock{font-size:1.8rem;font-weight:700;text-align:center;padding:12px;background:#1e1e1e;border:1px solid #2f2f2f;border-radius:14px;width:100%}
-.cp-session-intercom-inner{display:flex;gap:12px;height:100%;min-height:0}
-.cp-subsection{flex:1 1 0;display:flex;flex-direction:column;gap:6px;min-width:0;overflow:hidden}
-.cp-subsection h3{margin:0 0 6px;font-size:.95rem}
+.cp-top-row .cp-clock{font-size:1.4rem;padding:6px 10px;border-radius:10px;margin-bottom:4px}
+
+.cp-session-intercom-inner{display:flex;gap:8px;height:100%;min-height:0}
+.cp-subsection{flex:1 1 0;display:flex;flex-direction:column;gap:3px;min-width:0;overflow:hidden}
+.cp-subsection h3{margin:0 0 2px;font-size:.9rem}
+.cp-subsection select, .cp-subsection input, .cp-subsection button{margin-top:2px;padding:6px 8px;font-size:.8rem;border-radius:8px}
+.cp-subsection .row{margin-bottom:6px;gap:8px}
+.cp-subsection .file-label{font-size:.8rem}
+.cp-subsection .file-label input[type=file]{padding:4px 6px}
+.cp-subsection .file-type-list{margin-top:2px;font-size:.72rem}
+
 .cp-now-playing{font-weight:700;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px}
+.cp-progression{font-size:.8rem;font-family:'Space Mono',monospace;margin-bottom:6px;color:#aaa}
+
+/* Clock mode tabs and styles */
+.clock-mode-tabs{display:flex;width:100%;gap:4px;margin-bottom:8px;background:#101010;padding:3px;border-radius:8px;border:1px solid #2f2f2f;flex-shrink:0}
+.clock-mode-tab{flex:1;padding:5px 2px;font-size:.7rem;background:transparent;border:none;border-radius:6px;color:#888;cursor:pointer;text-align:center;text-transform:uppercase;font-weight:700;transition:all .2s;letter-spacing:.02em}
+.clock-mode-tab:hover{color:#ccc;background:transparent;border-color:transparent}
+.clock-mode-tab.active{background:#222;color:#fff}
+.clock-display-content{width:100%;display:flex;flex-direction:column;align-items:center;gap:6px}
+.clock-display-content.hidden{display:none}
+.clock-controls{display:flex;gap:6px;width:100%}
+.clock-controls button{flex:1;padding:6px;font-size:.75rem;border-radius:8px}
+.timer-settings{display:flex;align-items:center;justify-content:center;gap:4px;margin:2px 0;width:100%}
+.timer-input{width:54px !important;text-align:center;padding:4px 6px !important;margin:0 !important;font-size:.8rem;border-radius:8px}
+.timer-settings span{font-size:.85rem;color:#888}
+
+/* Alarm pulse for the clock card panel */
+@keyframes timerPulse {
+  0% { background: #161616; }
+  50% { background: #b33; }
+  100% { background: #161616; }
+}
+.cp-stopwatch.timer-alarm{animation:timerPulse 1.2s infinite}
 .cp-mini-controls{display:flex;gap:6px;margin-bottom:4px}
 .cp-mini-controls .action-button{flex:1;padding:8px 6px;font-size:.8rem}
 .cp-mirror-mini{flex:1 1 auto;min-height:0;background:#080808;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;margin-bottom:6px}

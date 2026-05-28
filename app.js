@@ -75,6 +75,45 @@ const mediaMuteAudio = document.getElementById('mediaMuteAudio');
 const pauseMusicDuring = document.getElementById('pauseMusicDuringAnnouncement');
 const fadeMusic = document.getElementById('fadeMusic');
 
+// CP Sidebar controls selectors
+const cpMusicPlay = document.getElementById('cpMusicPlay');
+const cpMusicPause = document.getElementById('cpMusicPause');
+const cpMusicPrev = document.getElementById('cpMusicPrev');
+const cpMusicNext = document.getElementById('cpMusicNext');
+const cpMusicVolume = document.getElementById('cpMusicVolume');
+const cpMediaPrev = document.getElementById('cpMediaPrev');
+const cpMediaNext = document.getElementById('cpMediaNext');
+const cpMediaNotes = document.getElementById('cpMediaNotes');
+
+// Play on finish checkboxes selectors
+const musicPlayOnFinish = document.getElementById('musicPlayOnFinish');
+const cpMusicPlayOnFinish = document.getElementById('cpMusicPlayOnFinish');
+const musicTransition = document.getElementById('musicTransition');
+const cpMusicTransition = document.getElementById('cpMusicTransition');
+const mediaPlayOnFinish = document.getElementById('mediaPlayOnFinish');
+const cpMediaPlayOnFinish = document.getElementById('cpMediaPlayOnFinish');
+const mediaTransition = document.getElementById('mediaTransition');
+const cpMediaTransition = document.getElementById('cpMediaTransition');
+
+// Stopwatch / Timer tabs & displays selectors
+const btnClockMode = document.getElementById('btnClockMode');
+const btnStopwatchMode = document.getElementById('btnStopwatchMode');
+const btnTimerMode = document.getElementById('btnTimerMode');
+const clockDisplay = document.getElementById('clockDisplay');
+const stopwatchDisplay = document.getElementById('stopwatchDisplay');
+const timerDisplay = document.getElementById('timerDisplay');
+
+const btnStopwatchStart = document.getElementById('btnStopwatchStart');
+const btnStopwatchReset = document.getElementById('btnStopwatchReset');
+const stopwatchTime = document.getElementById('stopwatchTime');
+
+const btnTimerStart = document.getElementById('btnTimerStart');
+const btnTimerReset = document.getElementById('btnTimerReset');
+const timerTime = document.getElementById('timerTime');
+const timerInputMin = document.getElementById('timerInputMin');
+const timerInputSec = document.getElementById('timerInputSec');
+const stopwatchPanel = document.getElementById('stopwatchPanel');
+
 let selectedInputDeviceId = '';
 let selectedOutputDeviceId = '';
 
@@ -1392,9 +1431,46 @@ function renderSoundboardGrid(){
 
 function playSongAt(i){
   if (i<0 || i>=songs.length) return;
+  
+  const useTransition = musicTransition && musicTransition.checked;
+  const isPlaying = musicPlaying && musicAudio.src && !musicAudio.paused;
+  
   currentSongIndex = i;
-  musicAudio.src = songs[i].url;
-  musicAudio.play();
+  
+  if (useTransition && isPlaying) {
+    // Fade out current song
+    const oldVolume = musicAudio.volume;
+    const steps = 15;
+    let step = 0;
+    const fadeInterval = setInterval(() => {
+      step++;
+      musicAudio.volume = Math.max(0, oldVolume * (1 - step / steps));
+      if (step >= steps) {
+        clearInterval(fadeInterval);
+        
+        musicAudio.src = songs[i].url;
+        musicAudio.volume = 0;
+        musicAudio.play().catch(() => {});
+        
+        // Fade in new song
+        const targetVolume = (parseFloat(masterVolume?.value) || 1) * (parseFloat(musicVolume?.value) || 1);
+        let inStep = 0;
+        const fadeInInterval = setInterval(() => {
+          inStep++;
+          musicAudio.volume = Math.min(targetVolume, targetVolume * (inStep / steps));
+          if (inStep >= steps) {
+            clearInterval(fadeInInterval);
+            musicAudio.volume = targetVolume;
+          }
+        }, 300 / steps);
+      }
+    }, 300 / steps);
+  } else {
+    musicAudio.src = songs[i].url;
+    musicAudio.play().catch(() => {});
+    applyVolumeSettings();
+  }
+  
   musicPlaying = true;
   updateMusicUI();
   updateButtonStates();
@@ -1456,12 +1532,20 @@ musicNext.addEventListener('click', ()=>{
 
 musicAudio.addEventListener('timeupdate', ()=>{
   updateQueueProgress('music');
+  updateMusicProgression();
 });
 
 musicAudio.addEventListener('ended', ()=>{
   if (musicLoopMode === 'single'){
     musicAudio.currentTime = 0;
     musicAudio.play();
+    return;
+  }
+  // Play on finish logic
+  if (musicPlayOnFinish && !musicPlayOnFinish.checked) {
+    musicPlaying = false;
+    updateMusicUI();
+    updateButtonStates();
     return;
   }
   const next = findNextPlayableSongIndex(currentSongIndex);
@@ -1484,6 +1568,16 @@ musicAudio.addEventListener('ended', ()=>{
 musicAudio.addEventListener('play', ()=>{ updateMusicUI(); updateButtonStates(); });
 musicAudio.addEventListener('pause', ()=>{ updateMusicUI(); updateButtonStates(); });
 
+function updateMusicProgression(){
+  const cpProgression = document.getElementById('cpMusicProgression');
+  if (!cpProgression) return;
+  const current = musicAudio.currentTime || 0;
+  const duration = musicAudio.duration || 0;
+  const currentStr = current > 0 ? formatDuration(current) : '0:00';
+  const durationStr = duration > 0 ? formatDuration(duration) : '0:00';
+  cpProgression.textContent = `${currentStr} / ${durationStr}`;
+}
+
 function updateMusicUI(){
   const name = (currentSongIndex>=0 && songs[currentSongIndex])? songs[currentSongIndex].name : 'No song';
   if (currentSongEl) currentSongEl.textContent = name;
@@ -1492,6 +1586,7 @@ function updateMusicUI(){
   if (cpSong) cpSong.textContent = name;
   const lis = musicQueue.querySelectorAll('li');
   lis.forEach(li=> li.classList.toggle('active', parseInt(li.dataset.index)===currentSongIndex));
+  updateMusicProgression();
 }
 
 
@@ -1500,6 +1595,15 @@ function updateButtonStates(){
   musicPlay.classList.toggle('inactive', !musicPlaying);
   musicPause.classList.toggle('active-pause', !musicPlaying);
   musicPause.classList.toggle('inactive', musicPlaying);
+
+  if (cpMusicPlay) {
+    cpMusicPlay.classList.toggle('active-play', musicPlaying);
+    cpMusicPlay.classList.toggle('inactive', !musicPlaying);
+  }
+  if (cpMusicPause) {
+    cpMusicPause.classList.toggle('active-pause', !musicPlaying);
+    cpMusicPause.classList.toggle('inactive', musicPlaying);
+  }
 
   mediaPlay.classList.toggle('active-play', mediaPlaying);
   mediaPlay.classList.toggle('inactive', !mediaPlaying);
@@ -1562,15 +1666,35 @@ function showMediaAt(i, autoplay = true){
   if (i<0 || i>=media.length) return;
   currentMediaIndex = i;
   updateMediaUI();
-  updateMediaMirror(media[i], autoplay);
-  sendMediaToDisplay(media[i], autoplay);
+  
+  const useTransition = mediaTransition && mediaTransition.checked;
+  if (useTransition) {
+    const mirror1 = mediaMirrorContent;
+    const mirror2 = document.getElementById('cpMediaMirrorContent');
+    [mirror1, mirror2].forEach(m => {
+      if (m) {
+        m.style.transition = 'opacity 0.15s ease';
+        m.style.opacity = '0';
+      }
+    });
+    setTimeout(() => {
+      updateMediaMirror(media[i], autoplay);
+      [mirror1, mirror2].forEach(m => {
+        if (m) m.style.opacity = '1';
+      });
+    }, 150);
+  } else {
+    updateMediaMirror(media[i], autoplay);
+  }
+  
+  sendMediaToDisplay(media[i], autoplay, useTransition);
   if (mediaLooping) scheduleMediaAdvance();
   updateButtonStates();
 }
 
-function sendMediaToDisplay(item, autoplay = true){
+function sendMediaToDisplay(item, autoplay = true, transition = false){
   if (!displayWindow || displayWindow.closed) openDisplayWindow();
-  const msg = {type:'show', item:{name:item.name,url:item.url,type:item.type, muted: (mediaMuteAudio ? !!mediaMuteAudio.checked : true), autoplay}};
+  const msg = {type:'show', item:{name:item.name,url:item.url,type:item.type, muted: (mediaMuteAudio ? !!mediaMuteAudio.checked : true), autoplay}, transition};
   // wait for popup to be ready
   setTimeout(()=> displayWindow.postMessage(msg,'*'),200);
 }
@@ -1752,6 +1876,14 @@ function advanceMedia(){
   if (media.length===0) return;
   if (mediaLoopMode === 'single') {
     showMediaAt(currentMediaIndex);
+    return;
+  }
+  // Play on finish logic
+  if (mediaPlayOnFinish && !mediaPlayOnFinish.checked) {
+    mediaPlaying = false;
+    mediaLooping = false;
+    stopMediaLoop();
+    updateButtonStates();
     return;
   }
   const nextIndex = findNextPlayableMediaIndex(currentMediaIndex, 1);
@@ -2002,12 +2134,6 @@ function syncCpMirror(item){
 }
 
 // CP Music controls
-const cpMusicPlay = document.getElementById('cpMusicPlay');
-const cpMusicPause = document.getElementById('cpMusicPause');
-const cpMusicPrev = document.getElementById('cpMusicPrev');
-const cpMusicNext = document.getElementById('cpMusicNext');
-const cpMusicVolume = document.getElementById('cpMusicVolume');
-
 if (cpMusicPlay) cpMusicPlay.addEventListener('click', () => musicPlay.click());
 if (cpMusicPause) cpMusicPause.addEventListener('click', () => musicPause.click());
 if (cpMusicPrev) cpMusicPrev.addEventListener('click', () => musicPrev.click());
@@ -2022,10 +2148,6 @@ if (cpMusicVolume) {
 }
 
 // CP Media controls
-const cpMediaPrev = document.getElementById('cpMediaPrev');
-const cpMediaNext = document.getElementById('cpMediaNext');
-const cpMediaNotes = document.getElementById('cpMediaNotes');
-
 if (cpMediaPrev) cpMediaPrev.addEventListener('click', () => mediaPrev.click());
 if (cpMediaNext) cpMediaNext.addEventListener('click', () => mediaNext.click());
 
@@ -2052,3 +2174,151 @@ updateMediaNotesUI = function(){
   cpMediaNotes.value = mediaNotes.value;
   cpMediaNotes.placeholder = mediaNotes.placeholder;
 };
+
+// Sync Music checkboxes
+if (musicPlayOnFinish && cpMusicPlayOnFinish) {
+  musicPlayOnFinish.addEventListener('change', () => { cpMusicPlayOnFinish.checked = musicPlayOnFinish.checked; });
+  cpMusicPlayOnFinish.addEventListener('change', () => { musicPlayOnFinish.checked = cpMusicPlayOnFinish.checked; });
+}
+if (musicTransition && cpMusicTransition) {
+  musicTransition.addEventListener('change', () => { cpMusicTransition.checked = musicTransition.checked; });
+  cpMusicTransition.addEventListener('change', () => { musicTransition.checked = cpMusicTransition.checked; });
+}
+
+// Sync Slides checkboxes
+if (mediaPlayOnFinish && cpMediaPlayOnFinish) {
+  mediaPlayOnFinish.addEventListener('change', () => { cpMediaPlayOnFinish.checked = mediaPlayOnFinish.checked; });
+  cpMediaPlayOnFinish.addEventListener('change', () => { mediaPlayOnFinish.checked = cpMediaPlayOnFinish.checked; });
+}
+if (mediaTransition && cpMediaTransition) {
+  mediaTransition.addEventListener('change', () => { cpMediaTransition.checked = mediaTransition.checked; });
+  cpMediaTransition.addEventListener('change', () => { mediaTransition.checked = cpMediaTransition.checked; });
+}
+
+// Clock Widget tab toggling
+function showClockPane(pane) {
+  [clockDisplay, stopwatchDisplay, timerDisplay].forEach(d => d?.classList.add('hidden'));
+  [btnClockMode, btnStopwatchMode, btnTimerMode].forEach(b => b?.classList.remove('active'));
+  
+  if (pane === 'clock') {
+    clockDisplay?.classList.remove('hidden');
+    btnClockMode?.classList.add('active');
+  } else if (pane === 'stopwatch') {
+    stopwatchDisplay?.classList.remove('hidden');
+    btnStopwatchMode?.classList.add('active');
+  } else if (pane === 'timer') {
+    timerDisplay?.classList.remove('hidden');
+    btnTimerMode?.classList.add('active');
+  }
+}
+
+btnClockMode?.addEventListener('click', () => showClockPane('clock'));
+btnStopwatchMode?.addEventListener('click', () => showClockPane('stopwatch'));
+btnTimerMode?.addEventListener('click', () => showClockPane('timer'));
+
+// Stopwatch Logic
+let stopwatchRunning = false;
+let stopwatchTimeMs = 0;
+let stopwatchInterval = null;
+
+function updateStopwatchDisplay() {
+  if (!stopwatchTime) return;
+  const elapsedSec = Math.floor(stopwatchTimeMs / 1000);
+  const min = Math.floor(elapsedSec / 60).toString().padStart(2, '0');
+  const sec = (elapsedSec % 60).toString().padStart(2, '0');
+  const tenths = Math.floor((stopwatchTimeMs % 1000) / 100).toString();
+  stopwatchTime.textContent = `${min}:${sec}.${tenths}`;
+}
+
+btnStopwatchStart?.addEventListener('click', () => {
+  if (!stopwatchRunning) {
+    stopwatchRunning = true;
+    if (btnStopwatchStart) btnStopwatchStart.textContent = 'Pause';
+    const startTime = Date.now() - stopwatchTimeMs;
+    stopwatchInterval = setInterval(() => {
+      stopwatchTimeMs = Date.now() - startTime;
+      updateStopwatchDisplay();
+    }, 100);
+  } else {
+    stopwatchRunning = false;
+    if (btnStopwatchStart) btnStopwatchStart.textContent = 'Start';
+    clearInterval(stopwatchInterval);
+  }
+});
+
+btnStopwatchReset?.addEventListener('click', () => {
+  stopwatchRunning = false;
+  clearInterval(stopwatchInterval);
+  stopwatchTimeMs = 0;
+  updateStopwatchDisplay();
+  if (btnStopwatchStart) btnStopwatchStart.textContent = 'Start';
+});
+
+// Timer Logic
+let timerRunning = false;
+let timerSecondsRemaining = 300;
+let timerInterval = null;
+let timerFlashInterval = null;
+
+function updateTimerDisplay() {
+  if (!timerTime) return;
+  const min = Math.floor(timerSecondsRemaining / 60).toString().padStart(2, '0');
+  const sec = (timerSecondsRemaining % 60).toString().padStart(2, '0');
+  timerTime.textContent = `${min}:${sec}`;
+}
+
+btnTimerStart?.addEventListener('click', () => {
+  if (!timerRunning) {
+    const minInput = parseInt(timerInputMin?.value) || 0;
+    const secInput = parseInt(timerInputSec?.value) || 0;
+    const totalSec = minInput * 60 + secInput;
+    
+    if (timerSecondsRemaining <= 0 || timerSecondsRemaining === 300) {
+      timerSecondsRemaining = totalSec;
+    }
+    
+    if (timerSecondsRemaining <= 0) return;
+    
+    timerRunning = true;
+    if (btnTimerStart) btnTimerStart.textContent = 'Pause';
+    
+    timerInterval = setInterval(() => {
+      timerSecondsRemaining--;
+      updateTimerDisplay();
+      
+      if (timerSecondsRemaining <= 0) {
+        clearInterval(timerInterval);
+        timerRunning = false;
+        if (btnTimerStart) btnTimerStart.textContent = 'Start';
+        flashTimerAlert();
+      }
+    }, 1000);
+  } else {
+    timerRunning = false;
+    if (btnTimerStart) btnTimerStart.textContent = 'Start';
+    clearInterval(timerInterval);
+  }
+});
+
+btnTimerReset?.addEventListener('click', () => {
+  timerRunning = false;
+  clearInterval(timerInterval);
+  const minInput = parseInt(timerInputMin?.value) || 5;
+  const secInput = parseInt(timerInputSec?.value) || 0;
+  timerSecondsRemaining = minInput * 60 + secInput;
+  updateTimerDisplay();
+  if (btnTimerStart) btnTimerStart.textContent = 'Start';
+  stopFlashTimerAlert();
+});
+
+function flashTimerAlert() {
+  stopFlashTimerAlert();
+  if (!stopwatchPanel) return;
+  stopwatchPanel.classList.add('timer-alarm');
+}
+
+function stopFlashTimerAlert() {
+  if (stopwatchPanel) {
+    stopwatchPanel.classList.remove('timer-alarm');
+  }
+}
