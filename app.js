@@ -4,7 +4,7 @@
 const timeEl = document.getElementById('time');
 function updateTime(){
   const d=new Date();
-  timeEl.textContent = d.toLocaleTimeString();
+  if (timeEl) timeEl.textContent = d.toLocaleTimeString();
 }
 setInterval(updateTime,1000);
 updateTime();
@@ -1485,7 +1485,11 @@ musicAudio.addEventListener('play', ()=>{ updateMusicUI(); updateButtonStates();
 musicAudio.addEventListener('pause', ()=>{ updateMusicUI(); updateButtonStates(); });
 
 function updateMusicUI(){
-  currentSongEl.textContent = (currentSongIndex>=0 && songs[currentSongIndex])? songs[currentSongIndex].name : 'No song';
+  const name = (currentSongIndex>=0 && songs[currentSongIndex])? songs[currentSongIndex].name : 'No song';
+  if (currentSongEl) currentSongEl.textContent = name;
+  // Sync CP mini panel
+  const cpSong = document.getElementById('cpCurrentSong');
+  if (cpSong) cpSong.textContent = name;
   const lis = musicQueue.querySelectorAll('li');
   lis.forEach(li=> li.classList.toggle('active', parseInt(li.dataset.index)===currentSongIndex));
 }
@@ -1572,13 +1576,18 @@ function sendMediaToDisplay(item, autoplay = true){
 }
 
 function updateMediaUI(){
-  currentMediaEl.textContent = (currentMediaIndex>=0 && media[currentMediaIndex])? media[currentMediaIndex].name : 'No media';
+  const name = (currentMediaIndex>=0 && media[currentMediaIndex])? media[currentMediaIndex].name : 'No media';
+  if (currentMediaEl) currentMediaEl.textContent = name;
+  // Sync CP mini panel
+  const cpMedia = document.getElementById('cpCurrentMedia');
+  if (cpMedia) cpMedia.textContent = name;
   const lis = mediaQueue.querySelectorAll('li');
   lis.forEach(li=> li.classList.toggle('active', parseInt(li.dataset.index)===currentMediaIndex));
   updateMediaNotesUI();
   updateQueueProgress('media');
   refreshMediaPreviewSize();
   updateMediaPreviewCards();
+  syncCpMirror();
 }
 
 function updateQueueProgress(type){
@@ -1628,36 +1637,37 @@ function updateQueueProgress(type){
 let mediaProgressStart = 0;
 
 function updateMediaMirror(item, autoplay = true){
-  mediaMirrorContent.innerHTML = '';
-  if (!item) {
-    mediaMirrorContent.textContent = 'Nothing displayed';
+  if (mediaMirrorContent) {
+    mediaMirrorContent.innerHTML = '';
+    if (!item) {
+      mediaMirrorContent.textContent = 'Nothing displayed';
+      refreshMediaPreviewSize();
+    } else if (item.type.startsWith('image/')) {
+      const img = document.createElement('img');
+      img.src = item.url;
+      img.alt = item.name;
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.objectFit = 'contain';
+      mediaMirrorContent.appendChild(img);
+    } else if (item.type.startsWith('video/')) {
+      const video = document.createElement('video');
+      video.src = item.url;
+      video.controls = false;
+      video.autoplay = autoplay;
+      video.muted = (mediaMuteAudio ? !!mediaMuteAudio.checked : true);
+      video.loop = false;
+      video.style.width = '100%';
+      video.style.height = '100%';
+      video.style.objectFit = 'contain';
+      video.addEventListener('timeupdate', ()=> updateQueueProgress('media'));
+      mediaMirrorContent.appendChild(video);
+    } else {
+      mediaMirrorContent.textContent = item.name;
+    }
     refreshMediaPreviewSize();
-    return;
   }
-  if (item.type.startsWith('image/')) {
-    const img = document.createElement('img');
-    img.src = item.url;
-    img.alt = item.name;
-    img.style.width = '100%';
-    img.style.height = '100%';
-    img.style.objectFit = 'contain';
-    mediaMirrorContent.appendChild(img);
-  } else if (item.type.startsWith('video/')) {
-    const video = document.createElement('video');
-    video.src = item.url;
-    video.controls = false;
-    video.autoplay = autoplay;
-    video.muted = (mediaMuteAudio ? !!mediaMuteAudio.checked : true);
-    video.loop = false;
-    video.style.width = '100%';
-    video.style.height = '100%';
-    video.style.objectFit = 'contain';
-    video.addEventListener('timeupdate', ()=> updateQueueProgress('media'));
-    mediaMirrorContent.appendChild(video);
-  } else {
-    mediaMirrorContent.textContent = item.name;
-  }
-  refreshMediaPreviewSize();
+  syncCpMirror(item);
 }
 
 function updateMediaPreviewCards(){
@@ -1939,5 +1949,106 @@ window.addEventListener('beforeunload', ()=>{
 // simple status
 setInterval(()=>{
   const s = `music:${musicPlaying? 'playing':'stopped'} songs:${songs.length} media:${media.length}`;
-  document.getElementById('status').textContent = s;
+  const statusEl2 = document.getElementById('status');
+  if (statusEl2) statusEl2.textContent = s;
 },1000);
+
+// ===== PAGE NAVIGATION =====
+(function initPageNav(){
+  const tabs = document.querySelectorAll('.page-tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      // Hide all pages
+      document.querySelectorAll('.page').forEach(p => p.classList.add('page--hidden'));
+      // Deactivate all tabs
+      tabs.forEach(t => t.classList.remove('page-tab--active'));
+      // Show target page
+      const target = tab.dataset.page;
+      const page = document.getElementById(target);
+      if (page) page.classList.remove('page--hidden');
+      tab.classList.add('page-tab--active');
+      // Trigger resize for mirror display after page switch
+      setTimeout(refreshMediaPreviewSize, 50);
+    });
+  });
+})();
+
+// ===== CP MINI PANEL SYNC =====
+
+// Sync CP mirror display with current media
+function syncCpMirror(item){
+  const cpMirrorContent = document.getElementById('cpMediaMirrorContent');
+  if (!cpMirrorContent) return;
+  const current = item !== undefined ? item : (currentMediaIndex >= 0 ? media[currentMediaIndex] : null);
+  cpMirrorContent.innerHTML = '';
+  if (!current) {
+    cpMirrorContent.textContent = 'Nothing displayed';
+    return;
+  }
+  if (current.type.startsWith('image/')) {
+    const img = document.createElement('img');
+    img.src = current.url;
+    img.alt = current.name;
+    img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block';
+    cpMirrorContent.appendChild(img);
+  } else if (current.type.startsWith('video/')) {
+    const icon = document.createElement('div');
+    icon.textContent = '▶ ' + current.name;
+    icon.style.cssText = 'color:#888;font-size:.75rem;text-align:center;padding:8px';
+    cpMirrorContent.appendChild(icon);
+  } else {
+    cpMirrorContent.textContent = current.name;
+  }
+}
+
+// CP Music controls
+const cpMusicPlay = document.getElementById('cpMusicPlay');
+const cpMusicPause = document.getElementById('cpMusicPause');
+const cpMusicPrev = document.getElementById('cpMusicPrev');
+const cpMusicNext = document.getElementById('cpMusicNext');
+const cpMusicVolume = document.getElementById('cpMusicVolume');
+
+if (cpMusicPlay) cpMusicPlay.addEventListener('click', () => musicPlay.click());
+if (cpMusicPause) cpMusicPause.addEventListener('click', () => musicPause.click());
+if (cpMusicPrev) cpMusicPrev.addEventListener('click', () => musicPrev.click());
+if (cpMusicNext) cpMusicNext.addEventListener('click', () => musicNext.click());
+if (cpMusicVolume) {
+  cpMusicVolume.addEventListener('input', () => {
+    if (musicVolume) musicVolume.value = cpMusicVolume.value;
+    applyVolumeSettings();
+  });
+  // Keep in sync when audio page slider changes
+  if (musicVolume) musicVolume.addEventListener('input', () => { cpMusicVolume.value = musicVolume.value; });
+}
+
+// CP Media controls
+const cpMediaPrev = document.getElementById('cpMediaPrev');
+const cpMediaNext = document.getElementById('cpMediaNext');
+const cpMediaNotes = document.getElementById('cpMediaNotes');
+
+if (cpMediaPrev) cpMediaPrev.addEventListener('click', () => mediaPrev.click());
+if (cpMediaNext) cpMediaNext.addEventListener('click', () => mediaNext.click());
+
+// Sync CP notes with the main notes textarea
+if (cpMediaNotes && mediaNotes) {
+  // When main notes change, sync to CP
+  mediaNotes.addEventListener('input', () => {
+    cpMediaNotes.value = mediaNotes.value;
+  });
+  // When CP notes change, sync back to main
+  cpMediaNotes.addEventListener('input', () => {
+    mediaNotes.value = cpMediaNotes.value;
+    const item = getSelectedMediaItem();
+    if (item) item.notes = cpMediaNotes.value;
+  });
+}
+
+// Patch updateMediaNotesUI to also update CP notes
+const _origUpdateMediaNotesUI = updateMediaNotesUI;
+updateMediaNotesUI = function(){
+  _origUpdateMediaNotesUI();
+  if (!cpMediaNotes || !mediaNotes) return;
+  cpMediaNotes.disabled = mediaNotes.disabled;
+  cpMediaNotes.value = mediaNotes.value;
+  cpMediaNotes.placeholder = mediaNotes.placeholder;
+};

@@ -13,67 +13,16 @@
 <body>
   <div id="app">
 
-    <header>
-      <div class="brand-stack">
-        <button id="appBanner" class="app-banner-button" type="button" aria-label="Reload Event Control Panel">
-          <img src="ecp-banner.png" alt="Event Control Panel">
-        </button>
-        <div class="brand-links">
-          <a class="by-magmalabs-banner" href="https://magmalabs.dev/" target="_blank" rel="noopener">
-            <img src="by-magmalabs.png" alt="By MagmaLabs">
-          </a>
-          <a class="kofi-button" href="https://ko-fi.com/magmalabs" target="_blank" rel="noopener" aria-label="Support MagmaLabs on Ko-fi">
-            <img src="kofi.png" alt="Ko-fi">
-          </a>
-        </div>
-        <div id="time">--:--:--</div>
-      </div>
-      <section id="ecp" class="panel ecp-card">
-        <h3>Session</h3>
-        <div class="row wrap">
-          <label>Loaded preset:<br>
-            <select id="presetSelect"><option value="">No presets loaded</option></select>
-          </label>
-          <button id="ecpExport" class="action-button">Export this preset</button>
-          <button id="ecpExportAll" class="action-button">Export all presets</button>
-        </div>
-        <div class="row wrap">
-          <label class="file-label">Import preset(s)<br>
-            <input id="ecpImportFile" type="file" accept=".ecp,.json,application/json" multiple aria-describedby="ecpFileTypes">
-            <span id="ecpFileTypes" class="file-type-list">Supported: ECP session (.ecp), JSON (.json).</span>
-          </label>
-        </div>
-        <p class="note">Load one or more presets, switch between them, and export the current or all loaded presets.</p>
-      </section>
-      <section id="sessionNotesPanel" class="panel notes-card">
-        <h3>Notes</h3>
-        <textarea id="sessionNotes" rows="4" placeholder="Session notes"></textarea>
-      </section>
-      <section id="intercom" class="panel intercom-card">
-        <h3>Intercom</h3>
-        <div class="row">
-          <div class="mode-buttons">
-            <label class="mode-button"><input type="radio" name="mode" value="live" checked><span>Live passthrough</span></label>
-            <label class="mode-button"><input type="radio" name="mode" value="recorded"><span>Safe recorded</span></label>
-          </div>
-          <div class="field-group">
-            <label>Volume: <input id="intercomVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
-          </div>
-        </div>
-        <div class="row wrap">
-          <label>Input device:<br><select id="inputDeviceSelect"></select></label>
-          <label>Output device:<br><select id="outputDeviceSelect"></select></label>
-        </div>
-        <div class="row wrap">
-          <label><input id="pauseMusicDuringAnnouncement" type="checkbox" checked> Pause music during announcement</label>
-          <label><input id="fadeMusic" type="checkbox"> Fade music during announcement</label>
-        </div>
-        <button id="intercomToggle" class="action-button">Start Announcement</button>
-      </section>
-    </header>
+    <!-- Page Navigation Tabs -->
+    <nav class="page-nav">
+      <button id="tabAudio" class="page-tab" data-page="audioPage" type="button">Audio</button>
+      <button id="tabControl" class="page-tab page-tab--active" data-page="controlPage" type="button">Control Panel</button>
+      <button id="tabSlides" class="page-tab" data-page="slidesPage" type="button">Slides</button>
+    </nav>
 
-    <main>
-      <section id="left" class="panel">
+    <!-- ===== AUDIO PAGE ===== -->
+    <div id="audioPage" class="page page--hidden">
+      <section id="musicSection" class="panel">
         <h3>Music</h3>
         <div id="currentSong">No song</div>
         <ul id="musicQueue"></ul>
@@ -98,21 +47,146 @@
           <input id="musicFiles" type="file" accept="audio/*" multiple aria-describedby="musicFileTypes">
           <div id="musicFileTypes" class="file-type-list">Supported: MP3, WAV, OGG, M4A, AAC, FLAC, and other browser-playable audio files.</div>
         </div>
-        <div class="soundboard-card">
-          <h4>Soundboard</h4>
-          <div class="file-input-box">
-            <input id="soundboardFiles" type="file" accept="audio/*" multiple aria-describedby="soundboardFileTypes">
-            <div id="soundboardFileTypes" class="file-type-list">Supported: MP3, WAV, OGG, M4A, AAC, FLAC, and other browser-playable audio files.</div>
-          </div>
-          <div class="row">
-            <label>Soundboard volume: <input id="soundboardVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
-          </div>
-          <div id="soundboardGrid" class="soundboard-grid"></div>
-        </div>
       </section>
 
-      <section id="right" class="panel">
-        <h3>Slides / Media</h3>
+      <section class="panel soundboard-section">
+        <h3>Soundboard</h3>
+        <div class="file-input-box">
+          <input id="soundboardFiles" type="file" accept="audio/*" multiple aria-describedby="soundboardFileTypes">
+          <div id="soundboardFileTypes" class="file-type-list">Supported: MP3, WAV, OGG, M4A, AAC, FLAC, and other browser-playable audio files.</div>
+        </div>
+        <div class="row">
+          <label>Soundboard volume: <input id="soundboardVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+        </div>
+        <div id="soundboardGrid" class="soundboard-grid"></div>
+      </section>
+    </div>
+
+    <!-- ===== CONTROL PANEL PAGE (main, no scroll) ===== -->
+    <div id="controlPage" class="page page--noscroll">
+
+      <!-- Top row: Logo Banners | Session + Intercom | Stopwatch/Timer/Clock -->
+      <div class="cp-top-row">
+
+        <section id="logoBannersPanel" class="panel cp-panel cp-logo-banners">
+          <h3>Logo Banners</h3>
+          <div class="brand-stack">
+            <button id="appBanner" class="app-banner-button" type="button" aria-label="Reload Event Control Panel">
+              <img src="ecp-banner.png" alt="Event Control Panel">
+            </button>
+            <div class="brand-links">
+              <a class="by-magmalabs-banner" href="https://magmalabs.dev/" target="_blank" rel="noopener">
+                <img src="by-magmalabs.png" alt="By MagmaLabs">
+              </a>
+              <a class="kofi-button" href="https://ko-fi.com/magmalabs" target="_blank" rel="noopener" aria-label="Support MagmaLabs on Ko-fi">
+                <img src="kofi.png" alt="Ko-fi">
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <section id="sessionIntercomPanel" class="panel cp-panel cp-session-intercom">
+          <div class="cp-session-intercom-inner">
+            <div class="cp-subsection">
+              <h3>Session</h3>
+              <div class="row wrap">
+                <label>Loaded preset:<br>
+                  <select id="presetSelect"><option value="">No presets loaded</option></select>
+                </label>
+                <button id="ecpExport" class="action-button">Export preset</button>
+                <button id="ecpExportAll" class="action-button">Export all</button>
+              </div>
+              <div class="row wrap">
+                <label class="file-label">Import preset(s)<br>
+                  <input id="ecpImportFile" type="file" accept=".ecp,.json,application/json" multiple aria-describedby="ecpFileTypes">
+                  <span id="ecpFileTypes" class="file-type-list">Supported: ECP session (.ecp), JSON (.json).</span>
+                </label>
+              </div>
+            </div>
+            <div class="cp-subsection">
+              <h3>Intercom</h3>
+              <div class="row">
+                <div class="mode-buttons">
+                  <label class="mode-button"><input type="radio" name="mode" value="live" checked><span>Live</span></label>
+                  <label class="mode-button"><input type="radio" name="mode" value="recorded"><span>Recorded</span></label>
+                </div>
+                <div class="field-group">
+                  <label>Vol: <input id="intercomVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+                </div>
+              </div>
+              <div class="row wrap">
+                <label>Input:<br><select id="inputDeviceSelect"></select></label>
+                <label>Output:<br><select id="outputDeviceSelect"></select></label>
+              </div>
+              <div class="row wrap">
+                <label><input id="pauseMusicDuringAnnouncement" type="checkbox" checked> Pause music</label>
+                <label><input id="fadeMusic" type="checkbox"> Fade music</label>
+              </div>
+              <button id="intercomToggle" class="action-button">Start Announcement</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="stopwatchPanel" class="panel cp-panel cp-stopwatch">
+          <h3>Stopwatch / Timer / Clock</h3>
+          <div id="time" class="cp-clock">--:--:--</div>
+        </section>
+
+      </div>
+
+      <!-- Bottom row: Music (mini) | Slides (mini) | Blank -->
+      <div class="cp-bottom-row">
+
+        <section id="cpMusicPanel" class="panel cp-panel cp-music-mini">
+          <h3>Music</h3>
+          <div id="cpCurrentSong" class="cp-now-playing">No song</div>
+          <div class="cp-mini-controls">
+            <button id="cpMusicPlay" class="action-button">Autoplay</button>
+            <button id="cpMusicNext" class="action-button">Next</button>
+          </div>
+          <div class="cp-mini-controls">
+            <button id="cpMusicPause" class="action-button">Pause</button>
+            <button id="cpMusicPrev" class="action-button">Prev</button>
+          </div>
+          <div>
+            <label>Vol: <input id="cpMusicVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+          </div>
+        </section>
+
+        <section id="cpSlidesPanel" class="panel cp-panel cp-slides-mini">
+          <h3>Slides</h3>
+          <div id="cpCurrentMedia" class="cp-now-playing">No media</div>
+          <div id="cpMediaMirror" class="cp-mirror-mini">
+            <div id="cpMediaMirrorContent" class="cp-mirror-content-mini">Nothing displayed</div>
+          </div>
+          <div class="cp-mini-controls">
+            <button id="cpMediaNext" class="action-button">Next</button>
+            <button id="cpMediaPrev" class="action-button">Prev</button>
+          </div>
+          <div id="cpNotesRow" class="cp-notes-mini">
+            <textarea id="cpMediaNotes" rows="2" placeholder="Notes" disabled></textarea>
+          </div>
+        </section>
+
+        <section id="cpBlankPanel" class="panel cp-panel cp-blank">
+          <!-- Keep blank for now -->
+          <div id="status"></div>
+          <div class="cp-settings-footer">
+            <label>Master vol: <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+            <div id="sessionNotesPanel" class="notes-card-inline">
+              <h4>Notes</h4>
+              <textarea id="sessionNotes" rows="3" placeholder="Session notes"></textarea>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- ===== SLIDES PAGE ===== -->
+    <div id="slidesPage" class="page page--hidden">
+      <section id="slidesControlSection" class="panel">
+        <h3>Slides / Media Controls</h3>
         <div id="currentMedia">No media</div>
         <ul id="mediaQueue"></ul>
         <div class="controls">
@@ -136,6 +210,17 @@
           <label for="mediaNotes">Selected slide notes</label>
           <textarea id="mediaNotes" rows="4" placeholder="Select an image or slide to edit notes" disabled></textarea>
         </div>
+        <div class="file-input-box">
+          <input id="mediaFiles" type="file" accept="image/*,video/*,.pdf,application/pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple aria-describedby="mediaFileTypes">
+          <div id="mediaFileTypes" class="file-type-list">Supported: images, videos, PDF pages (.pdf), and PowerPoint slides (.pptx).</div>
+        </div>
+        <div class="open-display-row">
+          <button id="openDisplay">Open Display Window</button>
+        </div>
+      </section>
+
+      <section class="panel presenter-section">
+        <h3>Presenter</h3>
         <div id="mediaMirror" class="media-mirror">
           <h4>Mirror Display</h4>
           <div id="mediaMirrorContent" class="mirror-content">Nothing displayed</div>
@@ -150,21 +235,13 @@
             </button>
           </div>
         </div>
-        <div class="file-input-box">
-          <input id="mediaFiles" type="file" accept="image/*,video/*,.pdf,application/pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple aria-describedby="mediaFileTypes">
-          <div id="mediaFileTypes" class="file-type-list">Supported: images, videos, PDF pages (.pdf), and PowerPoint slides (.pptx).</div>
-        </div>
-        <div class="open-display-row">
-          <button id="openDisplay">Open Display Window</button>
+        <div id="presenterNotesCard" class="media-notes-card">
+          <label>Presenter notes</label>
+          <textarea id="presenterNotes" rows="5" placeholder="Presenter notes" disabled></textarea>
         </div>
       </section>
-    </main>
+    </div>
 
-    <footer class="bottom">
-      <h4>Settings</h4>
-      <div>Output volume master: <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="1"></div>
-      <div id="status"></div>
-    </footer>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
