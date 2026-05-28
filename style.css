@@ -25,6 +25,12 @@ header{display:flex;flex-wrap:wrap;gap:16px;align-items:stretch}
 .row{display:flex;gap:16px;align-items:center;margin-bottom:12px}
 .row.wrap{flex-wrap:wrap}
 .field-group{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.mode-buttons{display:flex;gap:10px;flex-wrap:wrap}
+.mode-button{position:relative;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;border-radius:12px;transition:transform .2s,border-color .2s,background .2s}
+.mode-button input[type=radio]{position:absolute;opacity:0;width:0;height:0;margin:0}
+.mode-button span{display:inline-flex;align-items:center;justify-content:center;width:100%;padding:10px 14px;background:#1d1d1d;border:1px solid #333;border-radius:12px;color:#eee;min-width:120px;text-transform:uppercase;letter-spacing:.04em}
+.mode-button:hover span{background:#262626;border-color:#5b5b5b;transform:translateY(-1px)}
+.mode-button input[type=radio]:checked + span{background:#2a8;color:#011;border-color:#2f9}
 main{display:flex;flex-wrap:wrap;gap:16px}
 #left,#right{flex:1 1 48%;min-width:320px}
 .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
@@ -40,6 +46,10 @@ li .item-info span{font-size:.95rem;color:#ccc}
 li .item-actions{display:flex;gap:8px;align-items:center}
 li .item-actions button{padding:6px 10px;font-size:.9rem;border-radius:10px;border:1px solid #3a3a3a;background:#1d1d1d;color:#eee}
 li .item-actions button:hover{background:#2a2a2a}
+li .skip-toggle{display:inline-flex;align-items:center;gap:6px;font-size:.85rem;color:#ccc;cursor:pointer;margin-right:8px}
+li .skip-toggle input{width:16px;height:16px;margin:0}
+li.skipped{opacity:.78}
+li.skipped .item-info span{color:#888}
 .bottom{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;padding:18px 20px;border-top:1px solid #222;border-radius:0 0 18px 18px;background:#131313}
 button{background:#262626;color:#fff;border:1px solid #333;padding:10px 14px;border-radius:10px;cursor:pointer;transition:background .2s,border-color .2s,color .2s}
 button:hover{border-color:#5b5b5b}
@@ -61,7 +71,7 @@ button.action-button.active-pause{background:#b33;color:#fff;border-color:#d55}
 button.action-button.active-toggle{background:#2a8;color:#011;border-color:#2f9}
 button.action-button.active-announcement{background:#2a8;color:#fff;border-color:#2f9}
 button.action-button.active-announcement.inactive{background:#2d2d2d;color:#bbb;border-color:#333}
-input[type=file],input[type=number]{width:100%;margin-top:12px;padding:10px 12px;background:#121212;border:1px solid #333;border-radius:10px;color:#eee}
+input[type=file],input[type=number],select{width:100%;margin-top:12px;padding:10px 12px;background:#121212;border:1px solid #333;border-radius:10px;color:#eee}
 textarea{width:100%;min-height:96px;margin-top:8px;padding:12px;background:#101010;border:1px solid #333;border-radius:10px;color:#eee;resize:vertical;line-height:1.45}
 textarea:focus{outline:none;border-color:#666}
 textarea:disabled{opacity:.55;cursor:not-allowed}

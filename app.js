@@ -15,7 +15,7 @@ let currentSongIndex = -1;
 let musicAudio = new Audio();
 musicAudio.preload = 'auto';
 let musicPlaying = false;
-let musicLoop = false;
+let musicLoopMode = 'off';
 
 let soundboardSounds = [];
 
@@ -25,6 +25,7 @@ let displayWindow = null;
 let mediaTimer = null;
 let mediaPlaying = false;
 let mediaLooping = false;
+let mediaLoopMode = 'off';
 let mediaProgressInterval = null;
 
 // Elements
@@ -35,7 +36,7 @@ const musicPlay = document.getElementById('musicPlay');
 const musicPause = document.getElementById('musicPause');
 const musicPrev = document.getElementById('musicPrev');
 const musicNext = document.getElementById('musicNext');
-const musicLoopButton = document.getElementById('musicLoop');
+const musicLoopModeSelect = document.getElementById('musicLoopMode');
 const musicShuffleButton = document.getElementById('musicShuffle');
 const soundboardFiles = document.getElementById('soundboardFiles');
 const soundboardGrid = document.getElementById('soundboardGrid');
@@ -52,6 +53,7 @@ const mediaPlay = document.getElementById('mediaPlay');
 const mediaPause = document.getElementById('mediaPause');
 const mediaPrev = document.getElementById('mediaPrev');
 const mediaNext = document.getElementById('mediaNext');
+const mediaLoopModeSelect = document.getElementById('mediaLoopMode');
 const mediaNotes = document.getElementById('mediaNotes');
 const mediaMirror = document.getElementById('mediaMirror');
 const transitionTimeEl = document.getElementById('transitionTime');
@@ -108,6 +110,7 @@ async function refreshAudioDeviceLists(){
 
     if (selectedInput) inputDeviceSelect.value = selectedInput;
     if (selectedOutput) outputDeviceSelect.value = selectedOutput;
+    void applyOutputDeviceToAllAudio();
   } catch (err) {
     console.warn('Unable to enumerate devices:', err);
   }
@@ -122,7 +125,36 @@ inputDeviceSelect.addEventListener('change', ()=>{
 });
 outputDeviceSelect.addEventListener('change', ()=>{
   selectedOutputDeviceId = outputDeviceSelect.value;
+  void applyOutputDeviceToAllAudio();
 });
+
+async function applyAudioOutputDevice(audio){
+  if (!audio || !selectedOutputDeviceId || typeof audio.setSinkId !== 'function') return;
+  try {
+    await audio.setSinkId(selectedOutputDeviceId);
+  } catch (err) {
+    console.warn('Unable to route audio to selected output device:', err);
+  }
+}
+
+async function applyOutputDeviceToAllAudio(){
+  await applyAudioOutputDevice(musicAudio);
+  if (intercomAudioEl) await applyAudioOutputDevice(intercomAudioEl);
+}
+
+function pauseAllAudio(){
+  if (musicAudio){ musicAudio.pause(); }
+  document.querySelectorAll('audio').forEach(a=>{ try { a.pause(); } catch {} });
+  if (mediaMirrorContent){ mediaMirrorContent.querySelectorAll('video').forEach(v=>{ try { v.pause(); } catch {} }); }
+  if (displayWindow && !displayWindow.closed) sendMediaControlToDisplay('pause');
+  stopMediaLoop();
+  mediaPlaying = false;
+  mediaLooping = false;
+  mediaProgressStart = 0;
+  if (intercomActive) stopIntercom();
+  musicPlaying = false;
+  updateButtonStates();
+}
 
 async function ensureDeviceAccess(){
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
@@ -194,6 +226,7 @@ async function serializeSessionItems(items){
       pages:item.pages || 0,
       notes:item.notes || '',
       durationFormatted:item.durationFormatted || '',
+      skip: !!item.skip,
       dataUrl:dataUrl || ''
     });
   }
@@ -211,7 +244,9 @@ async function createEcpPayload(sessionState){
       intercomVolume: parseFloat(intercomVolume.value),
       pauseMusicDuringAnnouncement: pauseMusicDuring.checked,
       fadeMusic: fadeMusic.checked,
-      musicLoop: musicLoop,
+      musicLoop: musicLoopMode === 'all',
+      musicLoopMode: musicLoopMode,
+      mediaLoopMode: mediaLoopMode,
       transitionTime: parseFloat(transitionTimeEl.value) || 5,
       intercomMode: document.querySelector('input[name="mode"]:checked')?.value || 'live',
       selectedInputDeviceId,
@@ -274,7 +309,8 @@ function createSessionItem(serialized){
     pageNumber: serialized.pageNumber || 0,
     pages: serialized.pages || 0,
     notes: serialized.notes || '',
-    durationFormatted: serialized.durationFormatted || 'Unknown'
+    durationFormatted: serialized.durationFormatted || 'Unknown',
+    skip: !!serialized.skip
   };
   return item;
 }
@@ -311,6 +347,8 @@ function updatePresetSelect(){
 }
 
 function applyPreset(preset){
+  pauseAllAudio();
+
   songs = (preset.music || []).map(item => ({ ...item }));
   soundboardSounds = (preset.soundboard || []).map(item => ({ ...item }));
   media = (preset.media || []).map(item => ({ ...item }));
@@ -332,14 +370,16 @@ function applyPreset(preset){
     }
     selectedInputDeviceId = preset.settings.selectedInputDeviceId || '';
     selectedOutputDeviceId = preset.settings.selectedOutputDeviceId || '';
-    musicLoop = preset.settings.musicLoop === true;
-    updateMusicLoopButton();
+    musicLoopMode = preset.settings.musicLoopMode || (preset.settings.musicLoop === true ? 'all' : 'off');
+    if (musicLoopModeSelect) musicLoopModeSelect.value = musicLoopMode;
+    mediaLoopMode = preset.settings.mediaLoopMode || 'off';
+    if (mediaLoopModeSelect) mediaLoopModeSelect.value = mediaLoopMode;
     currentSongIndex = Number.isInteger(preset.settings.currentSongIndex) && preset.settings.currentSongIndex >= 0 && preset.settings.currentSongIndex < songs.length ? preset.settings.currentSongIndex : -1;
-    currentMediaIndex = Number.isInteger(preset.settings.currentMediaIndex) && preset.settings.currentMediaIndex >= 0 && preset.settings.currentMediaIndex < media.length ? preset.settings.currentMediaIndex : -1;
   } else {
     currentSongIndex = -1;
-    currentMediaIndex = -1;
   }
+
+  currentMediaIndex = media.length > 0 ? 0 : -1;
 
   renderQueues();
   renderSoundboardGrid();
@@ -349,9 +389,15 @@ function applyPreset(preset){
   if (currentSongIndex >= 0 && songs[currentSongIndex]){
     musicAudio.src = songs[currentSongIndex].url;
   }
+
+  if (selectedOutputDeviceId){
+    void applyOutputDeviceToAllAudio();
+  }
+
   if (currentMediaIndex >= 0 && media[currentMediaIndex]){
-    updateMediaMirror(media[currentMediaIndex]);
-    sendMediaToDisplay(media[currentMediaIndex]);
+    showMediaAt(currentMediaIndex, false);
+  } else {
+    updateMediaUI();
   }
 }
 
@@ -415,8 +461,10 @@ async function applyImportedSession(payload){
     }
     selectedInputDeviceId = payload.settings.selectedInputDeviceId || '';
     selectedOutputDeviceId = payload.settings.selectedOutputDeviceId || '';
-    musicLoop = payload.settings.musicLoop === true;
-    updateMusicLoopButton();
+    musicLoopMode = payload.settings.musicLoopMode || (payload.settings.musicLoop === true ? 'all' : 'off');
+    if (musicLoopModeSelect) musicLoopModeSelect.value = musicLoopMode;
+    mediaLoopMode = payload.settings.mediaLoopMode || 'off';
+    if (mediaLoopModeSelect) mediaLoopModeSelect.value = mediaLoopMode;
     currentSongIndex = Number.isInteger(payload.settings.currentSongIndex) && payload.settings.currentSongIndex >= 0 && payload.settings.currentSongIndex < songs.length ? payload.settings.currentSongIndex : -1;
     currentMediaIndex = Number.isInteger(payload.settings.currentMediaIndex) && payload.settings.currentMediaIndex >= 0 && payload.settings.currentMediaIndex < media.length ? payload.settings.currentMediaIndex : -1;
   }
@@ -1158,6 +1206,7 @@ function createListItem(item, index, type){
   const li = document.createElement('li');
   li.dataset.index = index;
   li.classList.toggle('active', index === (type === 'music'? currentSongIndex : currentMediaIndex));
+  if (item.skip && (type === 'music' || type === 'media')) li.classList.add('skipped');
 
   const underlay = document.createElement('div');
   underlay.className = 'progress-underlay';
@@ -1193,6 +1242,24 @@ function createListItem(item, index, type){
 
   const actions = document.createElement('div');
   actions.className = 'item-actions';
+
+  if (type === 'music' || type === 'media') {
+    const skipLabel = document.createElement('label');
+    skipLabel.className = 'skip-toggle';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = !!item.skip;
+    checkbox.addEventListener('click', e => {
+      e.stopPropagation();
+      item.skip = checkbox.checked;
+      li.classList.toggle('skipped', !!item.skip);
+      updateButtonStates();
+    });
+    skipLabel.appendChild(checkbox);
+    skipLabel.appendChild(document.createTextNode('Skip'));
+    actions.appendChild(skipLabel);
+  }
+
   const up = document.createElement('button'); up.textContent = '↑';
   const down = document.createElement('button'); down.textContent = '↓';
   const remove = document.createElement('button'); remove.textContent = 'Delete';
@@ -1314,6 +1381,9 @@ function renderSoundboardGrid(){
       const m = parseFloat(masterVolume?.value) || 1;
       const sv = parseFloat(soundboardVolume?.value) || 1;
       sound.volume = m * sv;
+      if (selectedOutputDeviceId && typeof sound.setSinkId === 'function'){
+        sound.setSinkId(selectedOutputDeviceId).catch(err=>{ console.warn('Unable to route soundboard audio:', err); });
+      }
       sound.play().catch(()=>{});
     });
     soundboardGrid.appendChild(button);
@@ -1330,27 +1400,43 @@ function playSongAt(i){
   updateButtonStates();
 }
 
+function findNextPlayableSongIndex(startIndex){
+  let i = startIndex + 1;
+  while (i < songs.length){
+    if (!songs[i].skip) return i;
+    i += 1;
+  }
+  return -1;
+}
+
+function findPreviousPlayableSongIndex(startIndex){
+  let i = startIndex - 1;
+  while (i >= 0){
+    if (!songs[i].skip) return i;
+    i -= 1;
+  }
+  return -1;
+}
+
 musicPlay.addEventListener('click', ()=>{
-  if (currentSongIndex===-1 && songs.length) playSongAt(0);
-  else musicAudio.play();
+  if (currentSongIndex === -1 || songs[currentSongIndex]?.skip) {
+    const startIndex = findNextPlayableSongIndex(currentSongIndex);
+    if (startIndex !== -1) playSongAt(startIndex);
+  } else {
+    musicAudio.play();
+  }
   musicPlaying = true;
   updateMusicUI();
   updateButtonStates();
 });
 musicPause.addEventListener('click', ()=>{ musicAudio.pause(); musicPlaying=false; updateButtonStates(); });
-function updateMusicLoopButton(){
-  if (!musicLoopButton) return;
-  musicLoopButton.classList.toggle('active-toggle', musicLoop);
-  musicLoopButton.classList.toggle('inactive', !musicLoop);
-  musicLoopButton.setAttribute('aria-pressed', String(musicLoop));
-}
 
-if (musicLoopButton) {
-  musicLoopButton.addEventListener('click', ()=>{
-    musicLoop = !musicLoop;
-    updateMusicLoopButton();
+if (musicLoopModeSelect) {
+  musicLoopModeSelect.addEventListener('change', ()=>{
+    musicLoopMode = musicLoopModeSelect.value || 'off';
   });
 }
+
 musicShuffleButton.addEventListener('click', ()=>{
   const currentSong = songs[currentSongIndex];
   songs = songs.sort(()=>Math.random()-0.5);
@@ -1360,11 +1446,12 @@ musicShuffleButton.addEventListener('click', ()=>{
 
 // Music previous/next navigation
 musicPrev.addEventListener('click', ()=>{
-  if (currentSongIndex > 0) playSongAt(currentSongIndex - 1);
+  const prevIndex = currentSongIndex === -1 ? findPreviousPlayableSongIndex(songs.length) : findPreviousPlayableSongIndex(currentSongIndex);
+  if (prevIndex !== -1) playSongAt(prevIndex);
 });
 musicNext.addEventListener('click', ()=>{
-  if (currentSongIndex < songs.length - 1) playSongAt(currentSongIndex + 1);
-  else if (currentSongIndex === -1 && songs.length) playSongAt(0);
+  const nextIndex = currentSongIndex === -1 ? findNextPlayableSongIndex(-1) : findNextPlayableSongIndex(currentSongIndex);
+  if (nextIndex !== -1) playSongAt(nextIndex);
 });
 
 musicAudio.addEventListener('timeupdate', ()=>{
@@ -1372,10 +1459,26 @@ musicAudio.addEventListener('timeupdate', ()=>{
 });
 
 musicAudio.addEventListener('ended', ()=>{
-  if (musicLoop){ musicAudio.currentTime = 0; musicAudio.play(); return; }
-  const next = currentSongIndex+1;
-  if (next < songs.length) playSongAt(next);
-  else { musicPlaying=false; updateMusicUI(); updateButtonStates(); }
+  if (musicLoopMode === 'single'){
+    musicAudio.currentTime = 0;
+    musicAudio.play();
+    return;
+  }
+  const next = findNextPlayableSongIndex(currentSongIndex);
+  if (next !== -1) {
+    playSongAt(next);
+    return;
+  }
+  if (musicLoopMode === 'all') {
+    const first = findNextPlayableSongIndex(-1);
+    if (first !== -1) {
+      playSongAt(first);
+      return;
+    }
+  }
+  musicPlaying=false;
+  updateMusicUI();
+  updateButtonStates();
 });
 
 musicAudio.addEventListener('play', ()=>{ updateMusicUI(); updateButtonStates(); });
@@ -1393,7 +1496,6 @@ function updateButtonStates(){
   musicPlay.classList.toggle('inactive', !musicPlaying);
   musicPause.classList.toggle('active-pause', !musicPlaying);
   musicPause.classList.toggle('inactive', musicPlaying);
-  updateMusicLoopButton();
 
   mediaPlay.classList.toggle('active-play', mediaPlaying);
   mediaPlay.classList.toggle('inactive', !mediaPlaying);
@@ -1421,6 +1523,19 @@ function renderMediaQueue(){
   updateQueueProgress('media');
 }
 
+function isPlayableMediaIndex(index){
+  return index >= 0 && index < media.length && !media[index].skip;
+}
+
+function findNextPlayableMediaIndex(startIndex, direction){
+  let i = startIndex + direction;
+  while (i >= 0 && i < media.length){
+    if (!media[i].skip) return i;
+    i += direction;
+  }
+  return -1;
+}
+
 function openDisplayWindow(){
   if (displayWindow && !displayWindow.closed) { displayWindow.focus(); return; }
   displayWindow = window.open('media.html','EventDisplay','width=1280,height=720');
@@ -1439,19 +1554,19 @@ window.addEventListener('message', e => {
   }
 });
 
-function showMediaAt(i){
+function showMediaAt(i, autoplay = true){
   if (i<0 || i>=media.length) return;
   currentMediaIndex = i;
   updateMediaUI();
-  updateMediaMirror(media[i]);
-  sendMediaToDisplay(media[i]);
+  updateMediaMirror(media[i], autoplay);
+  sendMediaToDisplay(media[i], autoplay);
   if (mediaLooping) scheduleMediaAdvance();
   updateButtonStates();
 }
 
-function sendMediaToDisplay(item){
+function sendMediaToDisplay(item, autoplay = true){
   if (!displayWindow || displayWindow.closed) openDisplayWindow();
-  const msg = {type:'show', item:{name:item.name,url:item.url,type:item.type, muted: (mediaMuteAudio ? !!mediaMuteAudio.checked : true)}};
+  const msg = {type:'show', item:{name:item.name,url:item.url,type:item.type, muted: (mediaMuteAudio ? !!mediaMuteAudio.checked : true), autoplay}};
   // wait for popup to be ready
   setTimeout(()=> displayWindow.postMessage(msg,'*'),200);
 }
@@ -1512,7 +1627,7 @@ function updateQueueProgress(type){
 
 let mediaProgressStart = 0;
 
-function updateMediaMirror(item){
+function updateMediaMirror(item, autoplay = true){
   mediaMirrorContent.innerHTML = '';
   if (!item) {
     mediaMirrorContent.textContent = 'Nothing displayed';
@@ -1531,7 +1646,7 @@ function updateMediaMirror(item){
     const video = document.createElement('video');
     video.src = item.url;
     video.controls = false;
-    video.autoplay = true;
+    video.autoplay = autoplay;
     video.muted = (mediaMuteAudio ? !!mediaMuteAudio.checked : true);
     video.loop = false;
     video.style.width = '100%';
@@ -1625,14 +1740,37 @@ function scheduleMediaAdvance(){
 
 function advanceMedia(){
   if (media.length===0) return;
-  const nextIndex = (currentMediaIndex + 1) % media.length;
-  currentMediaIndex = nextIndex;
-  showMediaAt(currentMediaIndex);
+  if (mediaLoopMode === 'single') {
+    showMediaAt(currentMediaIndex);
+    return;
+  }
+  const nextIndex = findNextPlayableMediaIndex(currentMediaIndex, 1);
+  if (nextIndex !== -1) {
+    currentMediaIndex = nextIndex;
+    showMediaAt(currentMediaIndex);
+    return;
+  }
+  if (mediaLoopMode === 'all') {
+    const firstIndex = findNextPlayableMediaIndex(-1, 1);
+    if (firstIndex !== -1) {
+      currentMediaIndex = firstIndex;
+      showMediaAt(currentMediaIndex);
+      return;
+    }
+  }
+  mediaPlaying = false;
+  mediaLooping = false;
+  stopMediaLoop();
+  updateButtonStates();
 }
 
 mediaPlay.addEventListener('click', ()=>{
   if (media.length===0) return;
-  if (currentMediaIndex===-1) currentMediaIndex=0;
+  if (currentMediaIndex === -1 || media[currentMediaIndex]?.skip) {
+    const startIndex = findNextPlayableMediaIndex(currentMediaIndex, 1);
+    if (startIndex === -1) return;
+    currentMediaIndex = startIndex;
+  }
   mediaPlaying = true;
   mediaLooping = true;
   showMediaAt(currentMediaIndex);
@@ -1647,13 +1785,20 @@ mediaPause.addEventListener('click', ()=>{
   updateButtonStates();
 });
 
+if (mediaLoopModeSelect) {
+  mediaLoopModeSelect.addEventListener('change', ()=>{
+    mediaLoopMode = mediaLoopModeSelect.value || 'off';
+  });
+}
+
 // Media previous/next navigation
 mediaPrev.addEventListener('click', ()=>{
-  if (currentMediaIndex > 0) showMediaAt(currentMediaIndex - 1);
+  const prevIndex = currentMediaIndex === -1 ? findNextPlayableMediaIndex(media.length, -1) : findNextPlayableMediaIndex(currentMediaIndex, -1);
+  if (prevIndex !== -1) showMediaAt(prevIndex);
 });
 mediaNext.addEventListener('click', ()=>{
-  if (currentMediaIndex < media.length - 1) showMediaAt(currentMediaIndex + 1);
-  else if (currentMediaIndex === -1 && media.length) showMediaAt(0);
+  const nextIndex = currentMediaIndex === -1 ? findNextPlayableMediaIndex(-1, 1) : findNextPlayableMediaIndex(currentMediaIndex, 1);
+  if (nextIndex !== -1) showMediaAt(nextIndex);
 });
 
 function stopMediaLoop(){

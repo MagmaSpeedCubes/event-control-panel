@@ -53,7 +53,7 @@
       } else if (item.type.startsWith('video/')){
         const v = document.createElement('video');
         v.src = item.url;
-        v.autoplay = true;
+        v.autoplay = !!item.autoplay;
         v.controls = false;
         v.playsInline = true;
         v.muted = !!item.muted;
