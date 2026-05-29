@@ -164,8 +164,10 @@
             <div id="stopwatchTime" class="cp-clock">00:00.0</div>
             <div class="clock-controls">
               <button id="btnStopwatchStart" class="action-button" type="button">Start</button>
+              <button id="btnStopwatchLap" class="action-button" type="button" disabled>Lap</button>
               <button id="btnStopwatchReset" class="action-button" type="button">Reset</button>
             </div>
+            <div id="lapList" class="lap-list"></div>
           </div>
 
           <!-- Timer Display -->
@@ -280,6 +282,13 @@
               multiple aria-describedby="mediaFileTypes">
             <div id="mediaFileTypes" class="file-type-list">Supported: images, videos, PDF pages (.pdf), and PowerPoint
               slides (.pptx).</div>
+          </div>
+          <div class="url-input-section">
+            <div class="url-input-row">
+              <input id="mediaUrlInput" type="text" placeholder="Paste YouTube video or Google Drive shared file URL...">
+              <button id="mediaUrlAdd" class="action-button" type="button">Add</button>
+            </div>
+            <div class="file-type-list">Add YouTube videos or Google Drive shared files by URL. File must be publicly shared for Google Drive.</div>
           </div>
           <div class="open-display-row">
             <button id="openDisplay">Open Display Window</button>

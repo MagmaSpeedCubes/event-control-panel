@@ -97,6 +97,7 @@ const cpMediaTransition = document.getElementById('cpMediaTransition');
 
 // Stopwatch / Timer tabs & displays selectors
 const btnClockMode = document.getElementById('btnClockMode');
+const btnStopwatchLap = document.getElementById('btnStopwatchLap');
 const btnStopwatchMode = document.getElementById('btnStopwatchMode');
 const btnTimerMode = document.getElementById('btnTimerMode');
 const clockDisplay = document.getElementById('clockDisplay');
@@ -368,6 +369,59 @@ function addSpotifyToQueue(spotifyUri) {
   setTimeout(() => setStatus(''), 3000);
 }
 
+// Parse a YouTube or Google Drive URL for the slides/media queue
+function parseMediaUrl(url) {
+  try {
+    const u = new URL(url.trim());
+    if (u.hostname === 'youtu.be') {
+      const videoId = u.pathname.slice(1).split('?')[0];
+      if (videoId) return { type: 'youtube-embed', videoId };
+    }
+    if (u.hostname.includes('youtube.com')) {
+      const videoId = u.searchParams.get('v');
+      if (videoId) return { type: 'youtube-embed', videoId };
+      const embedMatch = u.pathname.match(/^\/embed\/([^/?]+)/);
+      if (embedMatch) return { type: 'youtube-embed', videoId: embedMatch[1] };
+      const shortsMatch = u.pathname.match(/^\/shorts\/([^/?]+)/);
+      if (shortsMatch) return { type: 'youtube-embed', videoId: shortsMatch[1] };
+    }
+    if (u.hostname === 'drive.google.com') {
+      const fileMatch = u.pathname.match(/\/file\/d\/([^/]+)/);
+      if (fileMatch) return { type: 'gdrive-embed', fileId: fileMatch[1] };
+      const fileId = u.searchParams.get('id');
+      if (fileId) return { type: 'gdrive-embed', fileId };
+    }
+    return null;
+  } catch { return null; }
+}
+
+function addMediaUrl(url) {
+  const parsed = parseMediaUrl(url);
+  if (!parsed) {
+    setStatus('Unrecognized URL. Paste a YouTube video or Google Drive shared file link.');
+    setTimeout(() => setStatus(''), 3000);
+    return;
+  }
+  if (parsed.type === 'youtube-embed') {
+    const embedUrl = `https://www.youtube.com/embed/${parsed.videoId}`;
+    const item = { name: `YouTube: ${parsed.videoId}`, type: 'youtube-embed', source: 'youtube-media', embedUrl, videoId: parsed.videoId, url: '', notes: '', durationFormatted: 'YouTube' };
+    media.push(item);
+    renderMediaQueue();
+    setStatus(`Added YouTube video`);
+    setTimeout(() => setStatus(''), 3000);
+    fetchYouTubeTitle(parsed.videoId).then(title => {
+      if (title && item) { item.name = `YouTube: ${title}`; renderMediaQueue(); }
+    });
+  } else if (parsed.type === 'gdrive-embed') {
+    const embedUrl = `https://drive.google.com/file/d/${parsed.fileId}/preview`;
+    const item = { name: `Drive: ${parsed.fileId.slice(0, 12)}...`, type: 'gdrive-embed', source: 'gdrive', embedUrl, fileId: parsed.fileId, url: '', notes: '', durationFormatted: 'Google Drive' };
+    media.push(item);
+    renderMediaQueue();
+    setStatus(`Added Google Drive file`);
+    setTimeout(() => setStatus(''), 3000);
+  }
+}
+
 // Fetch a YouTube video title via the free, CORS-enabled oEmbed endpoint (no API key needed)
 async function fetchYouTubeTitle(videoId) {
   try {
@@ -624,6 +678,14 @@ async function serializeSessionItems(items){
     if (item.source === 'spotify') {
       serialized.spotifyUri = item.spotifyUri || '';
     }
+    if (item.source === 'youtube-media') {
+      serialized.embedUrl = item.embedUrl || '';
+      serialized.videoId = item.videoId || '';
+    }
+    if (item.source === 'gdrive') {
+      serialized.embedUrl = item.embedUrl || '';
+      serialized.fileId = item.fileId || '';
+    }
     list.push(serialized);
   }
   return list;
@@ -715,6 +777,14 @@ function createSessionItem(serialized){
   }
   if (serialized.source === 'spotify') {
     item.spotifyUri = serialized.spotifyUri || '';
+  }
+  if (serialized.source === 'youtube-media') {
+    item.embedUrl = serialized.embedUrl || '';
+    item.videoId = serialized.videoId || '';
+  }
+  if (serialized.source === 'gdrive') {
+    item.embedUrl = serialized.embedUrl || '';
+    item.fileId = serialized.fileId || '';
   }
   return item;
 }
@@ -1612,8 +1682,11 @@ function createListItem(item, index, type){
   li.classList.toggle('active', index === (type === 'music'? currentSongIndex : currentMediaIndex));
   if (item.skip && (type === 'music' || type === 'media')) li.classList.add('skipped');
 
-  // Stream items (YouTube/Spotify) get a warning highlight
+  // Stream items (YouTube/Spotify/embed) get a warning highlight
   if (type === 'music' && (item.source === 'youtube' || item.source === 'spotify')) {
+    li.classList.add('stream-item');
+  }
+  if (type === 'media' && (item.source === 'youtube-media' || item.source === 'gdrive')) {
     li.classList.add('stream-item');
   }
 
@@ -1641,6 +1714,12 @@ function createListItem(item, index, type){
     typeText.className = 'source-badge badge-spotify';
   } else if (item.type.startsWith('audio/')) {
     typeText.textContent = item.durationFormatted || 'Loading...';
+  } else if (item.source === 'youtube-media') {
+    typeText.textContent = 'YouTube';
+    typeText.className = 'source-badge badge-youtube';
+  } else if (item.source === 'gdrive') {
+    typeText.textContent = 'Google Drive';
+    typeText.className = 'source-badge badge-gdrive';
   } else if (item.type.startsWith('video/')) {
     typeText.textContent = item.durationFormatted || 'Loading...';
   } else if (item.source === 'pdf') {
@@ -1654,7 +1733,7 @@ function createListItem(item, index, type){
   }
   details.appendChild(typeText);
 
-  // Warning badge for stream items where ECP controls have limits
+  // Warning badges
   if (type === 'music') {
     let warnText = null;
     if (item.source === 'spotify') {
@@ -1666,10 +1745,23 @@ function createListItem(item, index, type){
       const warn = document.createElement('span');
       warn.className = 'stream-warning';
       warn.textContent = warnText;
-      // Second line for Spotify to explain the preview limitation
       if (item.source === 'spotify') {
         warn.innerHTML = '⚠ ECP Next/Prev advances queue, not playlist<br><span style="color:#a88">Full tracks require Spotify login in browser; previews only for free accounts. Individual song listing not available on static sites (needs server OAuth).</span>';
       }
+      details.appendChild(warn);
+    }
+  }
+  if (type === 'media') {
+    let warnText = null;
+    if (item.source === 'youtube-media') {
+      warnText = '⚠ Autoplay may be blocked by browser; no auto-advance detection';
+    } else if (item.source === 'gdrive') {
+      warnText = '⚠ File must be publicly shared in Google Drive';
+    }
+    if (warnText) {
+      const warn = document.createElement('span');
+      warn.className = 'stream-warning';
+      warn.textContent = warnText;
       details.appendChild(warn);
     }
   }
@@ -1802,6 +1894,27 @@ if (musicUrlInput) {
       if (!url) return;
       addUrlToQueue(url);
       musicUrlInput.value = '';
+    }
+  });
+}
+
+const mediaUrlInput = document.getElementById('mediaUrlInput');
+const mediaUrlAdd = document.getElementById('mediaUrlAdd');
+if (mediaUrlAdd) {
+  mediaUrlAdd.addEventListener('click', () => {
+    const url = mediaUrlInput?.value?.trim();
+    if (!url) return;
+    addMediaUrl(url);
+    if (mediaUrlInput) mediaUrlInput.value = '';
+  });
+}
+if (mediaUrlInput) {
+  mediaUrlInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const url = mediaUrlInput.value.trim();
+      if (!url) return;
+      addMediaUrl(url);
+      mediaUrlInput.value = '';
     }
   });
 }
@@ -2266,7 +2379,7 @@ function showMediaAt(i, autoplay = true){
 
 function sendMediaToDisplay(item, autoplay = true, transition = false){
   if (!displayWindow || displayWindow.closed) openDisplayWindow();
-  const msg = {type:'show', item:{name:item.name,url:item.url,type:item.type, muted: (mediaMuteAudio ? !!mediaMuteAudio.checked : true), autoplay}, transition};
+  const msg = {type:'show', item:{name:item.name,url:item.url,type:item.type, muted: (mediaMuteAudio ? !!mediaMuteAudio.checked : true), autoplay, embedUrl: item.embedUrl || null}, transition};
   // wait for popup to be ready
   setTimeout(()=> displayWindow.postMessage(msg,'*'),200);
 }
@@ -2358,6 +2471,13 @@ function updateMediaMirror(item, autoplay = true){
       video.style.objectFit = 'contain';
       video.addEventListener('timeupdate', ()=> updateQueueProgress('media'));
       mediaMirrorContent.appendChild(video);
+    } else if (item.type === 'youtube-embed' || item.type === 'gdrive-embed') {
+      const iframe = document.createElement('iframe');
+      iframe.src = item.embedUrl || '';
+      iframe.style.cssText = 'width:100%;height:100%;border:0;border-radius:8px;';
+      iframe.allow = 'autoplay; fullscreen; encrypted-media';
+      iframe.allowFullscreen = true;
+      mediaMirrorContent.appendChild(iframe);
     } else {
       mediaMirrorContent.textContent = item.name;
     }
@@ -2413,7 +2533,7 @@ function renderPreviewCard(button, item, label){
   } else {
     const icon = document.createElement('div');
     icon.className = 'preview-icon';
-    icon.textContent = item.type.startsWith('video/') ? 'Video' : item.type === 'slide' ? 'Slide' : 'Media';
+    icon.textContent = item.type.startsWith('video/') ? 'Video' : item.type === 'youtube-embed' ? 'YouTube' : item.type === 'gdrive-embed' ? 'Drive' : item.type === 'slide' ? 'Slide' : 'Media';
     thumbWrapper.appendChild(icon);
   }
   const title = document.createElement('div');
@@ -2433,8 +2553,8 @@ function scheduleMediaAdvance(){
   if (media.length===0 || currentMediaIndex < 0) return;
   const current = media[currentMediaIndex];
   if (!current) return;
-  if (current.type.startsWith('video/')) {
-    // wait for the video ended event from the display window
+  if (current.type.startsWith('video/') || current.type === 'youtube-embed' || current.type === 'gdrive-embed') {
+    // wait for video ended event; embeds have no ended detection on static sites
     return;
   }
   const transition = Math.max(1, parseFloat(transitionTimeEl.value) || 5) * 1000;
@@ -2824,20 +2944,38 @@ btnTimerMode?.addEventListener('click', () => showClockPane('timer'));
 let stopwatchRunning = false;
 let stopwatchTimeMs = 0;
 let stopwatchInterval = null;
+let lapTimes = [];
+
+function formatStopwatchMs(ms) {
+  const elapsedSec = Math.floor(ms / 1000);
+  const min = Math.floor(elapsedSec / 60).toString().padStart(2, '0');
+  const sec = (elapsedSec % 60).toString().padStart(2, '0');
+  const tenths = Math.floor((ms % 1000) / 100).toString();
+  return `${min}:${sec}.${tenths}`;
+}
 
 function updateStopwatchDisplay() {
   if (!stopwatchTime) return;
-  const elapsedSec = Math.floor(stopwatchTimeMs / 1000);
-  const min = Math.floor(elapsedSec / 60).toString().padStart(2, '0');
-  const sec = (elapsedSec % 60).toString().padStart(2, '0');
-  const tenths = Math.floor((stopwatchTimeMs % 1000) / 100).toString();
-  stopwatchTime.textContent = `${min}:${sec}.${tenths}`;
+  stopwatchTime.textContent = formatStopwatchMs(stopwatchTimeMs);
+}
+
+function renderLaps() {
+  const lapList = document.getElementById('lapList');
+  if (!lapList) return;
+  lapList.innerHTML = '';
+  lapTimes.forEach((ms, i) => {
+    const div = document.createElement('div');
+    div.className = 'lap-item';
+    div.textContent = `Lap ${i + 1}  ${formatStopwatchMs(ms)}`;
+    lapList.appendChild(div);
+  });
 }
 
 btnStopwatchStart?.addEventListener('click', () => {
   if (!stopwatchRunning) {
     stopwatchRunning = true;
     if (btnStopwatchStart) btnStopwatchStart.textContent = 'Pause';
+    if (btnStopwatchLap) btnStopwatchLap.disabled = false;
     const startTime = Date.now() - stopwatchTimeMs;
     stopwatchInterval = setInterval(() => {
       stopwatchTimeMs = Date.now() - startTime;
@@ -2846,16 +2984,26 @@ btnStopwatchStart?.addEventListener('click', () => {
   } else {
     stopwatchRunning = false;
     if (btnStopwatchStart) btnStopwatchStart.textContent = 'Start';
+    if (btnStopwatchLap) btnStopwatchLap.disabled = true;
     clearInterval(stopwatchInterval);
   }
+});
+
+btnStopwatchLap?.addEventListener('click', () => {
+  if (!stopwatchRunning) return;
+  lapTimes.push(stopwatchTimeMs);
+  renderLaps();
 });
 
 btnStopwatchReset?.addEventListener('click', () => {
   stopwatchRunning = false;
   clearInterval(stopwatchInterval);
   stopwatchTimeMs = 0;
+  lapTimes = [];
   updateStopwatchDisplay();
+  renderLaps();
   if (btnStopwatchStart) btnStopwatchStart.textContent = 'Start';
+  if (btnStopwatchLap) btnStopwatchLap.disabled = true;
 });
 
 // Timer Logic
@@ -2864,6 +3012,12 @@ let timerSecondsRemaining = 300;
 let timerInterval = null;
 let timerFlashInterval = null;
 
+function readTimerInputs() {
+  const minVal = parseInt(timerInputMin?.value, 10);
+  const secVal = parseInt(timerInputSec?.value, 10);
+  return (isNaN(minVal) ? 0 : minVal) * 60 + (isNaN(secVal) ? 0 : secVal);
+}
+
 function updateTimerDisplay() {
   if (!timerTime) return;
   const min = Math.floor(timerSecondsRemaining / 60).toString().padStart(2, '0');
@@ -2871,25 +3025,28 @@ function updateTimerDisplay() {
   timerTime.textContent = `${min}:${sec}`;
 }
 
+// Live-update display when user edits inputs while timer is stopped
+timerInputMin?.addEventListener('input', () => {
+  if (!timerRunning) { timerSecondsRemaining = readTimerInputs(); updateTimerDisplay(); stopFlashTimerAlert(); }
+});
+timerInputSec?.addEventListener('input', () => {
+  if (!timerRunning) { timerSecondsRemaining = readTimerInputs(); updateTimerDisplay(); stopFlashTimerAlert(); }
+});
+
 btnTimerStart?.addEventListener('click', () => {
   if (!timerRunning) {
-    const minInput = parseInt(timerInputMin?.value) || 0;
-    const secInput = parseInt(timerInputSec?.value) || 0;
-    const totalSec = minInput * 60 + secInput;
-    
-    if (timerSecondsRemaining <= 0 || timerSecondsRemaining === 300) {
-      timerSecondsRemaining = totalSec;
+    if (timerSecondsRemaining <= 0) {
+      timerSecondsRemaining = readTimerInputs();
     }
-    
     if (timerSecondsRemaining <= 0) return;
-    
+
     timerRunning = true;
     if (btnTimerStart) btnTimerStart.textContent = 'Pause';
-    
+
     timerInterval = setInterval(() => {
       timerSecondsRemaining--;
       updateTimerDisplay();
-      
+
       if (timerSecondsRemaining <= 0) {
         clearInterval(timerInterval);
         timerRunning = false;
@@ -2907,9 +3064,7 @@ btnTimerStart?.addEventListener('click', () => {
 btnTimerReset?.addEventListener('click', () => {
   timerRunning = false;
   clearInterval(timerInterval);
-  const minInput = parseInt(timerInputMin?.value) || 5;
-  const secInput = parseInt(timerInputSec?.value) || 0;
-  timerSecondsRemaining = minInput * 60 + secInput;
+  timerSecondsRemaining = readTimerInputs();
   updateTimerDisplay();
   if (btnTimerStart) btnTimerStart.textContent = 'Start';
   stopFlashTimerAlert();
