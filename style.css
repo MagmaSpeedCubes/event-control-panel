@@ -175,6 +175,71 @@ textarea:disabled{opacity:.55;cursor:not-allowed}
 .open-display-row{margin-top:12px}
 h3{margin:0 0 12px;font-size:1rem}
 h4{margin:0 0 8px}
+/* ===== URL INPUT ROW ===== */
+.url-input-section{margin-top:10px}
+.url-input-row{display:flex;gap:8px;align-items:center}
+.url-input-row input[type=text]{flex:1 1 auto;margin:0;padding:10px 12px;font-size:.9rem;background:#121212;border:1px solid #333;border-radius:10px;color:#eee}
+.url-input-row input[type=text]:focus{outline:none;border-color:#666}
+.url-input-row .action-button{flex:0 0 auto;white-space:nowrap;padding:10px 16px}
+
+/* ===== YOUTUBE PLAYER CARD =====
+   Off-screen by default (position:fixed; left:-9999px) so the YouTube iframe
+   always initializes and stays functional. Switching to display:none breaks
+   the iframe and disables embed controls.
+*/
+.yt-player-card{position:fixed;left:-9999px;top:0;width:380px;height:240px;padding:10px 12px;background:#0f0f0f;border:1px solid #333;border-radius:14px;z-index:-1}
+.yt-player-card.stream-player-visible{position:relative;left:auto;top:auto;width:auto;height:auto;border-left:none;border-right:none;border-bottom:none;border-radius:0;border-top:1px solid #333;flex-shrink:0;z-index:auto}
+.yt-player-label{font-size:.78rem;color:#ccc;margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.yt-player-card iframe{display:block;border-radius:8px}
+
+/* ===== SPOTIFY PLAYER CARD ===== */
+.spotify-player-card{position:fixed;left:-9999px;top:0;width:380px;height:280px;padding:10px 12px;background:#0a1a0e;border:1px solid #1db954;border-radius:14px;z-index:-1}
+.spotify-player-card.stream-player-visible{position:relative;left:auto;top:auto;width:auto;height:auto;border-left:none;border-right:none;border-bottom:none;border-radius:0;border-top:1px solid #1db954;flex-shrink:0;z-index:auto}
+.spotify-player-label{font-size:.78rem;color:#1db954;margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.spotify-warning{display:block;color:#888;font-weight:400;text-transform:none;letter-spacing:0;font-size:.72rem;margin-top:3px}
+
+/* ===== SOURCE BADGES ===== */
+.source-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;vertical-align:middle}
+.badge-youtube{background:#c00;color:#fff}
+.badge-spotify{background:#1db954;color:#000}
+
+/* ===== STREAM ITEM WARNING ===== */
+li.stream-item{border-left:3px solid #a33;background:rgba(180,40,40,.08)}
+li.stream-item.active{border-left-color:#c44}
+.stream-warning{display:block;font-size:.7rem;color:#e87;margin-top:3px;font-weight:400}
+
+/* ===== API LIMITATION CONTROL STATES =====
+   .control-unavailable — feature is completely broken for the current source;
+                          button/input is disabled and coloured amber/orange.
+   .control-limited-warn — feature works at ECP-queue level but cannot reach
+                           inside the stream's own playlist; still clickable,
+                           coloured a softer amber so the operator is informed.
+*/
+.control-unavailable,
+button.control-unavailable,
+select.control-unavailable{
+  border-color:#7a4400 !important;
+  background:#1c0d00 !important;
+  color:#c87b30 !important;
+  cursor:not-allowed !important;
+  opacity:.8
+}
+input[type=range].control-unavailable{accent-color:#b86000;cursor:not-allowed}
+input[type=checkbox].control-unavailable{accent-color:#b86000;cursor:not-allowed}
+/* Style the wrapper label too */
+label.control-unavailable-label{color:#c87b30 !important;cursor:not-allowed !important}
+label.control-unavailable-label input[type=range],
+label.control-unavailable-label input[type=checkbox]{cursor:not-allowed}
+
+/* Limited: functional but restricted */
+.control-limited-warn,
+button.control-limited-warn,
+select.control-limited-warn{
+  border-color:#5a3800 !important;
+  color:#b07020 !important
+}
+label.control-limited-warn-label{color:#b07020 !important}
+
 @media (max-width:900px){
   .cp-top-row,.cp-bottom-row{flex-direction:column}
   .cp-logo-banners,.cp-stopwatch,.cp-blank{flex:none}

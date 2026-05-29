@@ -182,6 +182,8 @@ async function applyOutputDeviceToAllAudio(){
 }
 
 function pauseAllAudio(){
+  try { if (ytPlayerReady && ytPlayer?.pauseVideo) ytPlayer.pauseVideo(); } catch {}
+  try { if (spotifyController) spotifyController.pause(); } catch {}
   if (musicAudio){ musicAudio.pause(); }
   document.querySelectorAll('audio').forEach(a=>{ try { a.pause(); } catch {} });
   if (mediaMirrorContent){ mediaMirrorContent.querySelectorAll('video').forEach(v=>{ try { v.pause(); } catch {} }); }
@@ -212,12 +214,358 @@ function applyVolumeSettings(){
   const sv = parseFloat(soundboardVolume?.value) || 1;
   // effective volumes
   try { musicAudio.volume = m * mv; } catch {}
+  try { if (ytPlayer?.setVolume) ytPlayer.setVolume(Math.round(m * mv * 100)); } catch {}
   // (soundboard volumes applied on play)
 }
 
 masterVolume.addEventListener('input', applyVolumeSettings);
 if (musicVolume) musicVolume.addEventListener('input', applyVolumeSettings);
 if (soundboardVolume) soundboardVolume.addEventListener('input', applyVolumeSettings);
+
+// ===== YOUTUBE / SPOTIFY SUPPORT =====
+
+let ytPlayer = null;
+let ytPlayerReady = false;
+let ytApiReady = false;
+let ytApiLoading = false;
+let ytApiCallbacks = [];
+let ytPendingItem = null;
+let ytExpandedStart = -1; // songs[] index where an expanded playlist starts
+
+let spotifyController = null;
+let spotifyApiReady = false;
+let spotifyApiLoading = false;
+let spotifyApiCallbacks = [];
+
+let activePage = 'controlPage'; // tracks which page tab is active
+
+function updateStreamVisibility() {
+  const song = currentSongIndex >= 0 ? songs[currentSongIndex] : null;
+  const ytEl = document.getElementById('ytPlayerContainer');
+  const spEl = document.getElementById('spotifyPlayerContainer');
+  const onAudio = activePage === 'audioPage';
+  // Use class toggling: off-screen (position:fixed left:-9999px) when not shown
+  // so the iframe always remains functional (display:none breaks YouTube iframes).
+  if (ytEl) ytEl.classList.toggle('stream-player-visible', !!(onAudio && song?.source === 'youtube'));
+  if (spEl) spEl.classList.toggle('stream-player-visible', !!(onAudio && song?.source === 'spotify'));
+}
+
+// YouTube IFrame API loader
+function ensureYouTubeApi() {
+  return new Promise((resolve) => {
+    if (ytApiReady) { resolve(); return; }
+    ytApiCallbacks.push(resolve);
+    if (!ytApiLoading) {
+      ytApiLoading = true;
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+    }
+  });
+}
+
+window.onYouTubeIframeAPIReady = function() {
+  ytApiReady = true;
+  ytApiCallbacks.forEach(cb => cb());
+  ytApiCallbacks = [];
+};
+
+// Spotify Embed IFrame API loader
+function ensureSpotifyApi() {
+  return new Promise((resolve) => {
+    if (spotifyApiReady && window._spotifyIFrameAPI) { resolve(window._spotifyIFrameAPI); return; }
+    spotifyApiCallbacks.push(resolve);
+    if (!spotifyApiLoading) {
+      spotifyApiLoading = true;
+      window.onSpotifyIframeApiReady = function(IFrameAPI) {
+        window._spotifyIFrameAPI = IFrameAPI;
+        spotifyApiReady = true;
+        spotifyApiCallbacks.forEach(cb => cb(IFrameAPI));
+        spotifyApiCallbacks = [];
+      };
+      const script = document.createElement('script');
+      script.src = 'https://open.spotify.com/embed/iframe-api/v1';
+      script.async = true;
+      document.head.appendChild(script);
+    }
+  });
+}
+
+// URL parsers
+function parseYouTubeUrl(url) {
+  try {
+    const u = new URL(url.trim());
+    let videoId = null;
+    const playlistId = u.searchParams.get('list') || null;
+    if (u.hostname === 'youtu.be') {
+      videoId = u.pathname.slice(1).split('?')[0] || null;
+    } else if (u.hostname.includes('youtube.com')) {
+      if (u.pathname === '/watch') {
+        videoId = u.searchParams.get('v') || null;
+      } else if (u.pathname.startsWith('/embed/')) {
+        videoId = u.pathname.split('/')[2] || null;
+      } else if (u.pathname.startsWith('/shorts/')) {
+        videoId = u.pathname.split('/')[2] || null;
+      }
+    }
+    if (!videoId && !playlistId) return null;
+    return { videoId, playlistId };
+  } catch { return null; }
+}
+
+function parseSpotifyUrl(url) {
+  try {
+    const trimmed = url.trim();
+    if (trimmed.startsWith('spotify:')) {
+      const parts = trimmed.split(':');
+      if (parts.length >= 3 && parts[2]) return trimmed;
+      return null;
+    }
+    const u = new URL(trimmed);
+    if (u.hostname === 'open.spotify.com') {
+      const parts = u.pathname.split('/').filter(Boolean);
+      if (parts.length >= 2 && parts[1]) return `spotify:${parts[0]}:${parts[1]}`;
+    }
+    return null;
+  } catch { return null; }
+}
+
+// Queue add helpers
+function addUrlToQueue(url) {
+  const ytParsed = parseYouTubeUrl(url);
+  if (ytParsed) { addYouTubeToQueue(ytParsed); return; }
+  const spotifyUri = parseSpotifyUrl(url);
+  if (spotifyUri) { addSpotifyToQueue(spotifyUri); return; }
+  setStatus('Unrecognized URL. Paste a YouTube or Spotify link.');
+  setTimeout(() => setStatus(''), 3000);
+}
+
+function addYouTubeToQueue({ videoId, playlistId }) {
+  let name, item;
+  if (playlistId && !videoId) {
+    name = `YouTube Playlist (${playlistId})`;
+    item = { name, type: 'youtube', source: 'youtube', youtubeType: 'playlist', youtubeVideoId: null, youtubePlaylistId: playlistId, url: '', durationFormatted: 'YouTube' };
+  } else {
+    name = `YouTube Video (${videoId})`;
+    item = { name, type: 'youtube', source: 'youtube', youtubeType: 'video', youtubeVideoId: videoId, youtubePlaylistId: playlistId || null, url: '', durationFormatted: 'YouTube' };
+  }
+  songs.push(item);
+  renderQueues();
+  setStatus(`Added: ${name}`);
+  setTimeout(() => setStatus(''), 3000);
+}
+
+function addSpotifyToQueue(spotifyUri) {
+  const parts = spotifyUri.split(':');
+  const type = parts[1] || 'item';
+  const id = parts[2] || '';
+  const typeName = { playlist: 'Playlist', track: 'Track', album: 'Album', artist: 'Artist' }[type] || type;
+  const name = `Spotify ${typeName} (${id.slice(0, 10)}...)`;
+  const item = { name, type: 'spotify', source: 'spotify', spotifyUri, url: '', durationFormatted: 'Spotify' };
+  songs.push(item);
+  renderQueues();
+  setStatus(`Added: ${name}`);
+  setTimeout(() => setStatus(''), 3000);
+}
+
+// Fetch a YouTube video title via the free, CORS-enabled oEmbed endpoint (no API key needed)
+async function fetchYouTubeTitle(videoId) {
+  try {
+    const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}&format=json`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.title || null;
+  } catch { return null; }
+}
+
+// After playlist expansion, fetch real titles for all expanded items in the background
+async function fetchPlaylistTitles(expandedStart, count) {
+  for (let i = 0; i < count; i++) {
+    const item = songs[expandedStart + i];
+    if (!item || item.source !== 'youtube' || !item.youtubeVideoId) continue;
+    const title = await fetchYouTubeTitle(item.youtubeVideoId);
+    if (title && songs[expandedStart + i]) {
+      songs[expandedStart + i].name = title;
+      songs[expandedStart + i].currentTitle = title;
+    }
+    renderMusicQueue();
+  }
+}
+
+// YouTube player management
+async function activateYouTubeItem(item) {
+  musicAudio.pause();
+  musicAudio.src = '';
+  await ensureYouTubeApi();
+  if (!ytPlayer) {
+    ytPendingItem = item;
+    ytPlayer = new YT.Player('ytPlayer', {
+      height: '200', width: '356',
+      playerVars: { autoplay: 1, modestbranding: 1, rel: 0, iv_load_policy: 3, controls: 1 },
+      events: {
+        onReady: () => {
+          ytPlayerReady = true;
+          if (ytPendingItem) { loadYouTubeItem(ytPendingItem); ytPendingItem = null; }
+        },
+        onStateChange: onYtStateChange,
+        onError: (e) => console.warn('YouTube player error:', e.data)
+      }
+    });
+  } else if (ytPlayerReady) {
+    loadYouTubeItem(item);
+  } else {
+    ytPendingItem = item;
+  }
+  updateStreamVisibility();
+}
+
+function loadYouTubeItem(item) {
+  if (!ytPlayer) return;
+  const m = parseFloat(masterVolume?.value) || 1;
+  const mv = parseFloat(musicVolume?.value) || 1;
+  try { ytPlayer.setVolume(Math.round(m * mv * 100)); } catch {}
+  if (item.youtubeType === 'playlist') {
+    ytPlayer.loadPlaylist({ list: item.youtubePlaylistId, listType: 'playlist', index: 0 });
+  } else if (item.youtubeType === 'video-in-playlist') {
+    // Navigate within the active playlist to the right index
+    const playlistIndex = currentSongIndex - ytExpandedStart;
+    try { ytPlayer.playVideoAt(playlistIndex); } catch { ytPlayer.loadVideoById(item.youtubeVideoId); }
+  } else {
+    ytPlayer.loadVideoById(item.youtubeVideoId);
+  }
+}
+
+function onYtStateChange(event) {
+  if (event.data === YT.PlayerState.PLAYING) {
+    musicPlaying = true;
+    const song = currentSongIndex >= 0 ? songs[currentSongIndex] : null;
+
+    // First-time expansion of a YouTube playlist into individual cards
+    if (song?.source === 'youtube' && song.youtubeType === 'playlist') {
+      try {
+        const ids = ytPlayer.getPlaylist() || [];
+        const ytIndex = ytPlayer.getPlaylistIndex() || 0;
+        if (ids.length > 0) {
+          const playlistId = song.youtubePlaylistId;
+          const newItems = ids.map((id, idx) => ({
+            name: `Video ${idx + 1}`,
+            type: 'youtube', source: 'youtube',
+            youtubeType: 'video-in-playlist',
+            youtubeVideoId: id,
+            youtubePlaylistId: playlistId,
+            url: '', durationFormatted: 'YouTube'
+          }));
+          songs.splice(currentSongIndex, 1, ...newItems);
+          ytExpandedStart = currentSongIndex;
+          currentSongIndex = ytExpandedStart + ytIndex;
+          try {
+            const title = ytPlayer.getVideoData()?.title;
+            if (title) songs[currentSongIndex].currentTitle = title;
+          } catch {}
+          renderMusicQueue();
+          // Fetch real titles for all expanded items in the background
+          const expandStart = ytExpandedStart;
+          const expandCount = newItems.length;
+          fetchPlaylistTitles(expandStart, expandCount);
+        }
+      } catch {}
+    }
+
+    // Sync ECP index when YouTube auto-advances within an expanded playlist
+    if (song?.source === 'youtube' && song.youtubeType === 'video-in-playlist' && ytExpandedStart >= 0) {
+      try {
+        const ytIndex = ytPlayer.getPlaylistIndex() || 0;
+        currentSongIndex = ytExpandedStart + ytIndex;
+        const title = ytPlayer.getVideoData()?.title;
+        if (title) songs[currentSongIndex].currentTitle = title;
+        renderMusicQueue();
+      } catch {}
+    }
+
+    // Update title for single videos
+    if (song?.source === 'youtube' && (song.youtubeType === 'video')) {
+      try {
+        const title = ytPlayer.getVideoData()?.title;
+        if (title) songs[currentSongIndex].currentTitle = title;
+      } catch {}
+    }
+
+    updateMusicUI();
+    updateButtonStates();
+  } else if (event.data === YT.PlayerState.PAUSED) {
+    updateButtonStates();
+  } else if (event.data === YT.PlayerState.ENDED) {
+    if (musicLoopMode === 'single') {
+      try { ytPlayer.seekTo(0); ytPlayer.playVideo(); } catch {}
+      return;
+    }
+    if (musicPlayOnFinish && !musicPlayOnFinish.checked) {
+      musicPlaying = false; updateMusicUI(); updateButtonStates(); return;
+    }
+    const next = findNextPlayableSongIndex(currentSongIndex);
+    if (next !== -1) { playSongAt(next); return; }
+    if (musicLoopMode === 'all') {
+      const first = findNextPlayableSongIndex(-1);
+      if (first !== -1) { playSongAt(first); return; }
+    }
+    musicPlaying = false; updateMusicUI(); updateButtonStates();
+  }
+}
+
+function deactivateYouTubePlayer() {
+  try { if (ytPlayer?.stopVideo) ytPlayer.stopVideo(); } catch {}
+  ytExpandedStart = -1;
+  updateStreamVisibility();
+}
+
+// Spotify player management
+async function activateSpotifyItem(item) {
+  musicAudio.pause();
+  musicAudio.src = '';
+  updateStreamVisibility();
+  const IFrameAPI = await ensureSpotifyApi();
+  const embedEl = document.getElementById('spotifyEmbed');
+  if (!embedEl) return;
+  if (spotifyController) {
+    try { spotifyController.loadUri(item.spotifyUri); } catch {}
+    setTimeout(() => { try { spotifyController.play(); } catch {} }, 400);
+  } else {
+    IFrameAPI.createController(embedEl, { uri: item.spotifyUri, width: '100%', height: 232 }, (controller) => {
+      spotifyController = controller;
+      controller.addListener('ready', () => { try { controller.play(); } catch {} });
+      controller.addListener('playback_update', (event) => {
+        const { isPaused, position, duration } = event.data || {};
+        const song = currentSongIndex >= 0 ? songs[currentSongIndex] : null;
+        if (song?.source === 'spotify') { song.spotifyPosition = position; song.spotifyDuration = duration; }
+        if (!isPaused) { musicPlaying = true; updateButtonStates(); }
+        updateMusicUI();
+        if (duration > 0 && position >= duration - 1500 && isPaused) handleSpotifyTrackEnd();
+      });
+    });
+  }
+}
+
+function handleSpotifyTrackEnd() {
+  if (musicLoopMode === 'single') {
+    try { spotifyController.seek(0); spotifyController.play(); } catch {}
+    return;
+  }
+  if (musicPlayOnFinish && !musicPlayOnFinish.checked) {
+    musicPlaying = false; updateMusicUI(); updateButtonStates(); return;
+  }
+  const next = findNextPlayableSongIndex(currentSongIndex);
+  if (next !== -1) { playSongAt(next); return; }
+  if (musicLoopMode === 'all') {
+    const first = findNextPlayableSongIndex(-1);
+    if (first !== -1) { playSongAt(first); return; }
+  }
+  musicPlaying = false; updateMusicUI(); updateButtonStates();
+}
+
+function deactivateSpotifyPlayer() {
+  try { if (spotifyController) spotifyController.pause(); } catch {}
+  updateStreamVisibility();
+}
 
 function readBlobAsDataURL(blob){
   return new Promise((resolve,reject)=>{
@@ -257,7 +605,7 @@ async function serializeSessionItems(items){
   const list = [];
   for (const item of items){
     const dataUrl = await getItemDataUrl(item);
-    list.push({
+    const serialized = {
       name:item.name,
       type:item.type || '',
       source:item.source || '',
@@ -267,7 +615,16 @@ async function serializeSessionItems(items){
       durationFormatted:item.durationFormatted || '',
       skip: !!item.skip,
       dataUrl:dataUrl || ''
-    });
+    };
+    if (item.source === 'youtube') {
+      serialized.youtubeType = item.youtubeType || 'video';
+      serialized.youtubeVideoId = item.youtubeVideoId || null;
+      serialized.youtubePlaylistId = item.youtubePlaylistId || null;
+    }
+    if (item.source === 'spotify') {
+      serialized.spotifyUri = item.spotifyUri || '';
+    }
+    list.push(serialized);
   }
   return list;
 }
@@ -351,6 +708,14 @@ function createSessionItem(serialized){
     durationFormatted: serialized.durationFormatted || 'Unknown',
     skip: !!serialized.skip
   };
+  if (serialized.source === 'youtube') {
+    item.youtubeType = serialized.youtubeType || 'video';
+    item.youtubeVideoId = serialized.youtubeVideoId || null;
+    item.youtubePlaylistId = serialized.youtubePlaylistId || null;
+  }
+  if (serialized.source === 'spotify') {
+    item.spotifyUri = serialized.spotifyUri || '';
+  }
   return item;
 }
 
@@ -1247,6 +1612,11 @@ function createListItem(item, index, type){
   li.classList.toggle('active', index === (type === 'music'? currentSongIndex : currentMediaIndex));
   if (item.skip && (type === 'music' || type === 'media')) li.classList.add('skipped');
 
+  // Stream items (YouTube/Spotify) get a warning highlight
+  if (type === 'music' && (item.source === 'youtube' || item.source === 'spotify')) {
+    li.classList.add('stream-item');
+  }
+
   const underlay = document.createElement('div');
   underlay.className = 'progress-underlay';
   li.appendChild(underlay);
@@ -1262,7 +1632,14 @@ function createListItem(item, index, type){
   const details = document.createElement('div');
   details.className = 'detail-group';
   const typeText = document.createElement('span');
-  if (item.type.startsWith('audio/')) {
+  if (item.source === 'youtube') {
+    const ytLabel = item.youtubeType === 'playlist' ? 'YouTube Playlist' : item.youtubeType === 'video-in-playlist' ? 'YouTube' : 'YouTube';
+    typeText.textContent = ytLabel;
+    typeText.className = 'source-badge badge-youtube';
+  } else if (item.source === 'spotify') {
+    typeText.textContent = 'Spotify';
+    typeText.className = 'source-badge badge-spotify';
+  } else if (item.type.startsWith('audio/')) {
     typeText.textContent = item.durationFormatted || 'Loading...';
   } else if (item.type.startsWith('video/')) {
     typeText.textContent = item.durationFormatted || 'Loading...';
@@ -1276,6 +1653,27 @@ function createListItem(item, index, type){
     typeText.textContent = 'Image';
   }
   details.appendChild(typeText);
+
+  // Warning badge for stream items where ECP controls have limits
+  if (type === 'music') {
+    let warnText = null;
+    if (item.source === 'spotify') {
+      warnText = '⚠ Use embed for next/prev';
+    } else if (item.source === 'youtube' && item.youtubeType === 'playlist') {
+      warnText = '⚠ Expanding playlist...';
+    }
+    if (warnText) {
+      const warn = document.createElement('span');
+      warn.className = 'stream-warning';
+      warn.textContent = warnText;
+      // Second line for Spotify to explain the preview limitation
+      if (item.source === 'spotify') {
+        warn.innerHTML = '⚠ ECP Next/Prev advances queue, not playlist<br><span style="color:#a88">Full tracks require Spotify login in browser; previews only for free accounts. Individual song listing not available on static sites (needs server OAuth).</span>';
+      }
+      details.appendChild(warn);
+    }
+  }
+
   info.appendChild(title);
   info.appendChild(details);
 
@@ -1387,6 +1785,27 @@ musicFiles.addEventListener('change', e=>{
   renderQueues();
 });
 
+const musicUrlInput = document.getElementById('musicUrlInput');
+const musicUrlAdd = document.getElementById('musicUrlAdd');
+if (musicUrlAdd) {
+  musicUrlAdd.addEventListener('click', () => {
+    const url = musicUrlInput?.value?.trim();
+    if (!url) return;
+    addUrlToQueue(url);
+    if (musicUrlInput) musicUrlInput.value = '';
+  });
+}
+if (musicUrlInput) {
+  musicUrlInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const url = musicUrlInput.value.trim();
+      if (!url) return;
+      addUrlToQueue(url);
+      musicUrlInput.value = '';
+    }
+  });
+}
+
 soundboardFiles.addEventListener('change', e=>{
   const files = Array.from(e.target.files);
   files.forEach(f=>{
@@ -1431,12 +1850,46 @@ function renderSoundboardGrid(){
 
 function playSongAt(i){
   if (i<0 || i>=songs.length) return;
-  
+
+  const song = songs[i];
+
+  // Whether we're navigating within an already-expanded YouTube playlist (no full re-init needed)
+  const stayingInYtPlaylist = song.source === 'youtube' &&
+    song.youtubeType === 'video-in-playlist' &&
+    ytExpandedStart >= 0;
+
+  // Set currentSongIndex BEFORE deactivating so updateStreamVisibility sees the new song
+  currentSongIndex = i;
+
+  // Deactivate outgoing source players when switching type
+  if (song.source !== 'youtube') deactivateYouTubePlayer();
+  if (song.source !== 'spotify') deactivateSpotifyPlayer();
+
+  if (song.source === 'youtube') {
+    if (stayingInYtPlaylist && ytPlayerReady) {
+      loadYouTubeItem(song);
+      musicPlaying = true;
+      updateMusicUI();
+      updateButtonStates();
+    } else {
+      activateYouTubeItem(song);
+      musicPlaying = true;
+      updateMusicUI();
+      updateButtonStates();
+    }
+    return;
+  }
+  if (song.source === 'spotify') {
+    activateSpotifyItem(song);
+    musicPlaying = true;
+    updateMusicUI();
+    updateButtonStates();
+    return;
+  }
+
   const useTransition = musicTransition && musicTransition.checked;
   const isPlaying = musicPlaying && musicAudio.src && !musicAudio.paused;
-  
-  currentSongIndex = i;
-  
+
   if (useTransition && isPlaying) {
     // Fade out current song
     const oldVolume = musicAudio.volume;
@@ -1499,13 +1952,31 @@ musicPlay.addEventListener('click', ()=>{
     const startIndex = findNextPlayableSongIndex(currentSongIndex);
     if (startIndex !== -1) playSongAt(startIndex);
   } else {
-    musicAudio.play();
+    const current = songs[currentSongIndex];
+    if (current?.source === 'youtube' && ytPlayerReady && ytPlayer?.playVideo) {
+      try { ytPlayer.playVideo(); } catch {}
+    } else if (current?.source === 'spotify' && spotifyController) {
+      try { spotifyController.play(); } catch {}
+    } else {
+      musicAudio.play();
+    }
   }
   musicPlaying = true;
   updateMusicUI();
   updateButtonStates();
 });
-musicPause.addEventListener('click', ()=>{ musicAudio.pause(); musicPlaying=false; updateButtonStates(); });
+musicPause.addEventListener('click', ()=>{
+  const current = currentSongIndex >= 0 ? songs[currentSongIndex] : null;
+  if (current?.source === 'youtube' && ytPlayerReady && ytPlayer?.pauseVideo) {
+    try { ytPlayer.pauseVideo(); } catch {}
+  } else if (current?.source === 'spotify' && spotifyController) {
+    try { spotifyController.pause(); } catch {}
+  } else {
+    musicAudio.pause();
+  }
+  musicPlaying = false;
+  updateButtonStates();
+});
 
 if (musicLoopModeSelect) {
   musicLoopModeSelect.addEventListener('change', ()=>{
@@ -1522,10 +1993,18 @@ musicShuffleButton.addEventListener('click', ()=>{
 
 // Music previous/next navigation
 musicPrev.addEventListener('click', ()=>{
+  const current = currentSongIndex >= 0 ? songs[currentSongIndex] : null;
+  if (current?.source === 'youtube' && current.youtubeType === 'video-in-playlist' && ytPlayerReady && ytPlayer?.previousVideo) {
+    try { ytPlayer.previousVideo(); return; } catch {}
+  }
   const prevIndex = currentSongIndex === -1 ? findPreviousPlayableSongIndex(songs.length) : findPreviousPlayableSongIndex(currentSongIndex);
   if (prevIndex !== -1) playSongAt(prevIndex);
 });
 musicNext.addEventListener('click', ()=>{
+  const current = currentSongIndex >= 0 ? songs[currentSongIndex] : null;
+  if (current?.source === 'youtube' && current.youtubeType === 'video-in-playlist' && ytPlayerReady && ytPlayer?.nextVideo) {
+    try { ytPlayer.nextVideo(); return; } catch {}
+  }
   const nextIndex = currentSongIndex === -1 ? findNextPlayableSongIndex(-1) : findNextPlayableSongIndex(currentSongIndex);
   if (nextIndex !== -1) playSongAt(nextIndex);
 });
@@ -1571,6 +2050,21 @@ musicAudio.addEventListener('pause', ()=>{ updateMusicUI(); updateButtonStates()
 function updateMusicProgression(){
   const cpProgression = document.getElementById('cpMusicProgression');
   if (!cpProgression) return;
+  const currentSong = currentSongIndex >= 0 ? songs[currentSongIndex] : null;
+  if (currentSong?.source === 'youtube' && ytPlayer?.getCurrentTime) {
+    try {
+      const cur = ytPlayer.getCurrentTime() || 0;
+      const dur = ytPlayer.getDuration() || 0;
+      cpProgression.textContent = `${cur > 0 ? formatDuration(cur) : '0:00'} / ${dur > 0 ? formatDuration(dur) : '0:00'}`;
+      return;
+    } catch {}
+  }
+  if (currentSong?.source === 'spotify') {
+    const pos = (currentSong.spotifyPosition || 0) / 1000;
+    const dur = (currentSong.spotifyDuration || 0) / 1000;
+    cpProgression.textContent = `${pos > 0 ? formatDuration(pos) : '0:00'} / ${dur > 0 ? formatDuration(dur) : '0:00'}`;
+    return;
+  }
   const current = musicAudio.currentTime || 0;
   const duration = musicAudio.duration || 0;
   const currentStr = current > 0 ? formatDuration(current) : '0:00';
@@ -1578,8 +2072,85 @@ function updateMusicProgression(){
   cpProgression.textContent = `${currentStr} / ${durationStr}`;
 }
 
+// ===== API-LIMITATION CONTROL STATES =====
+
+let _lastControlSource = undefined;
+
+function setControlState(el, state, tooltip) {
+  if (!el) return;
+  // Clean previous state
+  el.classList.remove('control-unavailable', 'control-limited-warn');
+  el.disabled = false;
+  el.title = '';
+  // Also clean parent label if relevant
+  const label = el.closest('label') || (el.parentElement?.tagName === 'LABEL' ? el.parentElement : null);
+  if (label) {
+    label.classList.remove('control-unavailable-label', 'control-limited-warn-label');
+    label.title = '';
+  }
+
+  if (state === 'unavailable') {
+    el.classList.add('control-unavailable');
+    el.disabled = true;
+    el.title = tooltip;
+    if (label) { label.classList.add('control-unavailable-label'); label.title = tooltip; }
+  } else if (state === 'limited') {
+    el.classList.add('control-limited-warn');
+    el.title = tooltip;
+    if (label) { label.classList.add('control-limited-warn-label'); label.title = tooltip; }
+  }
+}
+
+function updateStreamControlStates() {
+  const song = currentSongIndex >= 0 ? songs[currentSongIndex] : null;
+  const src = song?.source ?? null;
+  if (src === _lastControlSource) return; // nothing changed
+  _lastControlSource = src;
+
+  const isYT = src === 'youtube';
+  const isSp = src === 'spotify';
+  const isStream = isYT || isSp;
+
+  // Crossfade — unavailable for both YouTube and Spotify (no audio-element crossfade possible)
+  const fadeState = isStream ? 'unavailable' : 'normal';
+  const fadeTip = 'Audio crossfade is not available for stream sources (YouTube / Spotify)';
+  setControlState(musicTransition, fadeState, fadeTip);
+  setControlState(cpMusicTransition, fadeState, fadeTip);
+
+  // Volume slider — unavailable for Spotify (embed API exposes no volume setter)
+  const volState = isSp ? 'unavailable' : 'normal';
+  const volTip = 'Volume cannot be controlled via the Spotify embed API';
+  setControlState(musicVolume, volState, volTip);
+  setControlState(cpMusicVolume, volState, volTip);
+
+  // Next / Prev — functional (advances ECP queue) but cannot navigate inside the Spotify playlist
+  const navState = isSp ? 'limited' : 'normal';
+  const navTip = 'Advances the ECP queue — to skip within the Spotify playlist, use the embed controls';
+  setControlState(musicNext, navState, navTip);
+  setControlState(musicPrev, navState, navTip);
+  setControlState(cpMusicNext, navState, navTip);
+  setControlState(cpMusicPrev, navState, navTip);
+
+  // Shuffle — functional for ECP queue but has no effect on Spotify's internal order
+  const shuffleState = isSp ? 'limited' : 'normal';
+  const shuffleTip = 'Shuffles the ECP queue order only — does not affect the Spotify playlist shuffle';
+  setControlState(musicShuffleButton, shuffleState, shuffleTip);
+
+  // Loop mode — functional at queue level but cannot loop within Spotify's internal playlist
+  const loopState = isSp ? 'limited' : 'normal';
+  const loopTip = 'Loop mode applies to the ECP queue only — it does not control Spotify\'s internal playback loop';
+  setControlState(musicLoopModeSelect, loopState, loopTip);
+
+  // Play on finish — functional but Spotify track-end detection is approximate
+  const pofState = isSp ? 'limited' : 'normal';
+  const pofTip = 'Spotify track-end detection is approximate; auto-advance may not trigger reliably';
+  setControlState(musicPlayOnFinish, pofState, pofTip);
+  setControlState(cpMusicPlayOnFinish, pofState, pofTip);
+}
+
 function updateMusicUI(){
-  const name = (currentSongIndex>=0 && songs[currentSongIndex])? songs[currentSongIndex].name : 'No song';
+  const song = currentSongIndex >= 0 ? songs[currentSongIndex] : null;
+  const name = song ? (song.currentTitle || song.name) : 'No song';
   if (currentSongEl) currentSongEl.textContent = name;
   // Sync CP mini panel
   const cpSong = document.getElementById('cpCurrentSong');
@@ -1587,6 +2158,7 @@ function updateMusicUI(){
   const lis = musicQueue.querySelectorAll('li');
   lis.forEach(li=> li.classList.toggle('active', parseInt(li.dataset.index)===currentSongIndex));
   updateMusicProgression();
+  updateStreamControlStates();
 }
 
 
@@ -2039,6 +2611,21 @@ function handleMusicForAnnouncement(starting){
 }
 
 function fadeOutMusic(durationSec=0.5){
+  const currentSong = currentSongIndex >= 0 ? songs[currentSongIndex] : null;
+  if (currentSong?.source === 'youtube' && ytPlayer?.getVolume) {
+    const startVol = ytPlayer.getVolume();
+    const steps = 20; let i = 0;
+    const iv = setInterval(() => {
+      i++; const t = i/steps;
+      try { ytPlayer.setVolume(Math.max(0, Math.round(startVol*(1-t)))); } catch {}
+      if (i >= steps) { clearInterval(iv); try { ytPlayer.pauseVideo(); ytPlayer.setVolume(startVol); } catch {} }
+    }, durationSec*1000/steps);
+    return;
+  }
+  if (currentSong?.source === 'spotify') {
+    try { spotifyController?.pause(); } catch {}
+    return;
+  }
   const start = musicAudio.volume;
   const steps = 20;
   let i=0;
@@ -2049,6 +2636,21 @@ function fadeOutMusic(durationSec=0.5){
   }, durationSec*1000/steps);
 }
 function fadeInMusic(durationSec=0.5){
+  const currentSong = currentSongIndex >= 0 ? songs[currentSongIndex] : null;
+  if (currentSong?.source === 'youtube' && ytPlayer?.setVolume) {
+    const target = Math.round((parseFloat(masterVolume?.value)||1) * (parseFloat(musicVolume?.value)||1) * 100);
+    try { ytPlayer.setVolume(0); ytPlayer.playVideo(); } catch {}
+    const steps = 20; let i = 0;
+    const iv = setInterval(() => {
+      i++; try { ytPlayer.setVolume(Math.min(target, Math.round(target*(i/steps)))); } catch {}
+      if (i >= steps) { clearInterval(iv); try { ytPlayer.setVolume(target); } catch {} }
+    }, durationSec*1000/steps);
+    return;
+  }
+  if (currentSong?.source === 'spotify') {
+    try { spotifyController?.play(); } catch {}
+    return;
+  }
   const target = (parseFloat(masterVolume.value)||1) * (parseFloat(musicVolume?.value)||1);
   musicAudio.volume = 0;
   musicAudio.play().catch(()=>{});
@@ -2099,6 +2701,8 @@ setInterval(()=>{
       const page = document.getElementById(target);
       if (page) page.classList.remove('page--hidden');
       tab.classList.add('page-tab--active');
+      activePage = target;
+      updateStreamVisibility();
       // Trigger resize for mirror display after page switch
       setTimeout(refreshMediaPreviewSize, 50);
     });

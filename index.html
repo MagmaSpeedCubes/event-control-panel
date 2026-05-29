@@ -50,6 +50,13 @@
           <div id="musicFileTypes" class="file-type-list">Supported: MP3, WAV, OGG, M4A, AAC, FLAC, and other
             browser-playable audio files.</div>
         </div>
+        <div class="url-input-section">
+          <div class="url-input-row">
+            <input id="musicUrlInput" type="text" placeholder="Paste YouTube or Spotify URL...">
+            <button id="musicUrlAdd" class="action-button" type="button">Add</button>
+          </div>
+          <div class="file-type-list">Add YouTube videos/playlists or Spotify playlists/tracks/albums by URL.</div>
+        </div>
       </section>
 
       <section class="panel soundboard-section">
@@ -304,6 +311,19 @@
       </section>
     </div>
 
+
+    <!-- Stream player containers — outside any page div so iframes always initialize correctly -->
+    <div id="ytPlayerContainer" class="yt-player-card">
+      <div class="yt-player-label">&#9654; YouTube — Now Playing</div>
+      <div id="ytPlayer"></div>
+    </div>
+    <div id="spotifyPlayerContainer" class="spotify-player-card">
+      <div class="spotify-player-label">&#9835; Spotify
+        <span class="spotify-warning">ECP Next/Prev advances the queue item, not the Spotify playlist. Use the Spotify player below for internal navigation.</span>
+        <span class="spotify-warning" style="color:#a55;margin-top:4px">&#9888; Static site limitation: Spotify embeds play 30-second previews for free accounts. Full tracks require being logged into Spotify in this browser. Individual track listing from playlists requires server-side OAuth (not available here).</span>
+      </div>
+      <div id="spotifyEmbed"></div>
+    </div>
 
     <!-- Page Navigation Tabs -->
     <nav class="page-nav">
