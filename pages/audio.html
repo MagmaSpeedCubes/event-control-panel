@@ -1,0 +1,52 @@
+      <section id="musicSection" class="panel">
+        <h3>Music</h3>
+        <div id="currentSong">No song</div>
+        <ul id="musicQueue"></ul>
+        <div class="controls">
+          <button id="musicPrev" class="action-button" title="Previous">Previous</button>
+          <button id="musicPlay" class="action-button" title="Autoplay">Autoplay</button>
+          <button id="musicPause" class="action-button" title="Pause">Pause</button>
+          <button id="musicNext" class="action-button" title="Next">Next</button>
+          <label>Loop mode:<br>
+            <select id="musicLoopMode">
+              <option value="off">Off</option>
+              <option value="single">Loop single</option>
+              <option value="all">Loop all</option>
+            </select>
+          </label>
+          <button id="musicShuffle" class="action-button" title="Shuffle">Shuffle</button>
+        </div>
+        <div class="row wrap" style="margin-top: 10px; gap: 12px; font-size: 0.9rem;">
+          <label><input id="musicPlayOnFinish" type="checkbox" checked> Play on finish</label>
+          <label><input id="musicTransition" type="checkbox" checked> Audio crossfade</label>
+        </div>
+        <div class="row">
+          <label>Music volume: <input id="musicVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+        </div>
+        <div class="file-input-box">
+          <input id="musicFiles" type="file" accept="audio/*" multiple aria-describedby="musicFileTypes">
+          <div id="musicFileTypes" class="file-type-list">Supported: MP3, WAV, OGG, M4A, AAC, FLAC, and other
+            browser-playable audio files.</div>
+        </div>
+        <div class="url-input-section">
+          <div class="url-input-row">
+            <input id="musicUrlInput" type="text" placeholder="Paste YouTube or Spotify URL...">
+            <button id="musicUrlAdd" class="action-button" type="button" title="Add URL">Add</button>
+          </div>
+          <div class="file-type-list">Add YouTube videos/playlists or Spotify playlists/tracks/albums by URL.</div>
+        </div>
+      </section>
+
+      <section class="panel soundboard-section">
+        <h3>Soundboard</h3>
+        <div class="file-input-box">
+          <input id="soundboardFiles" type="file" accept="audio/*" multiple aria-describedby="soundboardFileTypes">
+          <div id="soundboardFileTypes" class="file-type-list">Supported: MP3, WAV, OGG, M4A, AAC, FLAC, and other
+            browser-playable audio files.</div>
+        </div>
+        <div class="row">
+          <label>Soundboard volume: <input id="soundboardVolume" type="range" min="0" max="1" step="0.01"
+              value="1"></label>
+        </div>
+        <div id="soundboardGrid" class="soundboard-grid"></div>
+      </section>

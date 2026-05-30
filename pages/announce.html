@@ -1,0 +1,117 @@
+      <!-- LEFT COLUMN -->
+      <div class="announce-left">
+
+        <!-- TOP ROW: Intercom | Clock -->
+        <div class="announce-top-row">
+
+          <!-- Intercom Panel -->
+          <section class="panel announce-intercom-panel">
+            <h3>Intercom</h3>
+            <div class="row" style="margin-bottom:8px">
+              <div class="mode-buttons">
+                <label class="mode-button"><input type="radio" name="an-mode" value="live" checked><span>Live</span></label>
+                <label class="mode-button"><input type="radio" name="an-mode" value="recorded"><span>Recorded</span></label>
+              </div>
+              <label style="font-size:.85rem;white-space:nowrap">Vol:
+                <input id="anIntercomVolume" type="range" min="0" max="1" step="0.01" value="1">
+              </label>
+            </div>
+            <div class="row wrap" style="gap:8px;margin-bottom:8px">
+              <label style="font-size:.85rem;flex:1 1 0;min-width:0">Input:<br>
+                <select id="anInputDeviceSelect" style="margin-top:4px;width:100%"></select>
+              </label>
+              <label style="font-size:.85rem;flex:1 1 0;min-width:0">Output:<br>
+                <select id="anOutputDeviceSelect" style="margin-top:4px;width:100%"></select>
+              </label>
+            </div>
+            <div class="row wrap" style="gap:12px;margin-bottom:8px">
+              <label><input id="anPauseMusicDuringAnnouncement" type="checkbox" checked> Pause music</label>
+              <label><input id="anFadeMusic" type="checkbox"> Fade music</label>
+            </div>
+            <label style="font-size:.85rem;display:block;margin-bottom:8px">Soundboard cue:
+              <select id="intercomSoundCueSelect" style="margin-top:4px;width:100%;margin-top:4px">
+                <option value="">None</option>
+              </select>
+            </label>
+            <button id="anIntercomToggle" class="action-button" style="width:100%" title="Toggle Announcement">Start Announcement</button>
+          </section>
+
+          <!-- Clock Panel (synced with Control Panel) -->
+          <section id="anStopwatchPanel" class="panel cp-stopwatch announce-clock-panel">
+            <h3>Stopwatch / Timer / Clock</h3>
+            <div class="clock-mode-tabs">
+              <button id="anBtnClockMode" class="clock-mode-tab active" type="button">Clock</button>
+              <button id="anBtnStopwatchMode" class="clock-mode-tab" type="button">Stopwatch</button>
+              <button id="anBtnTimerMode" class="clock-mode-tab" type="button">Timer</button>
+            </div>
+            <div id="anClockDisplay" class="clock-display-content">
+              <div id="anTime" class="cp-clock">--:--:--</div>
+            </div>
+            <div id="anStopwatchDisplay" class="clock-display-content hidden">
+              <div id="anStopwatchTime" class="cp-clock">00:00.0</div>
+              <div class="clock-controls">
+                <button id="anBtnStopwatchStart" class="action-button" type="button" title="Start / Pause">Start</button>
+                <button id="anBtnStopwatchLap" class="action-button" type="button" title="Lap" disabled>Lap</button>
+                <button id="anBtnStopwatchReset" class="action-button" type="button" title="Reset">Reset</button>
+              </div>
+              <div id="anLapList" class="lap-list"></div>
+            </div>
+            <div id="anTimerDisplay" class="clock-display-content hidden">
+              <div id="anTimerTime" class="cp-clock">05:00</div>
+              <div class="timer-settings">
+                <input id="anTimerInputMin" type="number" min="0" max="99" value="5" placeholder="Min" class="timer-input">
+                <span>:</span>
+                <input id="anTimerInputSec" type="number" min="0" max="59" value="0" placeholder="Sec" class="timer-input">
+              </div>
+              <div class="clock-controls">
+                <button id="anBtnTimerStart" class="action-button" type="button" title="Start / Pause">Start</button>
+                <button id="anBtnTimerReset" class="action-button" type="button" title="Reset">Reset</button>
+              </div>
+            </div>
+          </section>
+
+        </div>
+
+        <!-- Typed Announcement Panel -->
+        <section class="panel announce-text-panel">
+          <h3>Typed Announcement</h3>
+          <textarea id="announcementTextInput" rows="3" placeholder="Type your announcement here..."></textarea>
+          <div class="announce-appearance-row">
+            <label class="announce-color-label">Text color
+              <input id="announcementTextColor" type="color" value="#ffffff">
+            </label>
+            <label class="announce-color-label">Background
+              <input id="announcementBgColor" type="color" value="#000000">
+            </label>
+            <label class="announce-opacity-label">Opacity
+              <div class="announce-slider-row">
+                <input id="announcementBgAlpha" type="range" min="0" max="1" step="0.01" value="0.85">
+                <span id="announcementBgAlphaVal">85%</span>
+              </div>
+            </label>
+            <label class="announce-linger-label">Linger (s)
+              <input id="announcementLinger" type="number" min="0" value="5" class="announce-linger-input">
+            </label>
+          </div>
+          <div class="row wrap" style="margin-top:10px;gap:8px;margin-bottom:0">
+            <button id="showAnnouncementBtn" class="action-button" title="Show on Screen">Show on Screen</button>
+            <button id="clearAnnouncementBtn" class="action-button" title="Clear Announcement">Clear</button>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- RIGHT COLUMN: Soundboard -->
+      <div class="announce-right">
+        <section class="panel soundboard-section announce-soundboard">
+          <h3>Soundboard</h3>
+          <div class="file-input-box">
+            <input id="announceSoundboardFiles" type="file" accept="audio/*" multiple aria-describedby="announceSbFileTypes">
+            <div id="announceSbFileTypes" class="file-type-list">Supported: MP3, WAV, OGG, M4A, AAC, FLAC, and other browser-playable audio files.</div>
+          </div>
+          <div class="row">
+            <label>Soundboard volume: <input id="announceSoundboardVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+          </div>
+          <div id="announceSoundboardGrid" class="soundboard-grid"></div>
+        </section>
+      </div>

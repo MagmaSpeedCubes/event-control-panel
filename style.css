@@ -1,3 +1,4 @@
+:root{--panel-bg:#161616}
 *{box-sizing:border-box;font-family:'Space Mono',system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
 body{margin:0;background:#101010;color:#eee}
 #app{display:flex;flex-direction:column;height:100vh;overflow:hidden;gap:0;padding:0;max-width:1400px;margin:0 auto}
@@ -67,9 +68,9 @@ body{margin:0;background:#101010;color:#eee}
 
 /* Alarm pulse for the clock card panel */
 @keyframes timerPulse {
-  0% { background: #161616; }
+  0% { background: var(--panel-bg, #161616); }
   50% { background: #b33; }
-  100% { background: #161616; }
+  100% { background: var(--panel-bg, #161616); }
 }
 .cp-stopwatch.timer-alarm{animation:timerPulse 1.2s infinite}
 .cp-mini-controls{display:flex;gap:6px;margin-bottom:4px}
@@ -276,3 +277,155 @@ label.control-limited-warn-label{color:#b07020 !important}
   .announce-top-row{flex-direction:column}
   .announce-clock-panel{flex:none}
 }
+
+/* ===== ICONS MODE (action buttons) ===== */
+body.icons-mode button.action-button{font-size:0;min-width:2.4rem;padding:10px}
+body.icons-mode button.action-button::before{content:'';display:block;width:1rem;height:1rem;margin:0 auto;background:#ddd;-webkit-mask-repeat:no-repeat;-webkit-mask-position:center;-webkit-mask-size:contain;mask-repeat:no-repeat;mask-position:center;mask-size:contain}
+body.light-mode.icons-mode button.action-button::before{background:#222}
+body.icons-mode button.action-button.active-play::before,
+body.icons-mode button.action-button.active-pause::before,
+body.icons-mode button.action-button.active-announcement::before{background:#fff}
+
+/* Play / Autoplay */
+body.icons-mode #musicPlay::before,body.icons-mode #mediaPlay::before,body.icons-mode #cpMusicPlay::before{-webkit-mask-image:url(icons/play.svg);mask-image:url(icons/play.svg)}
+/* Pause */
+body.icons-mode #musicPause::before,body.icons-mode #mediaPause::before,body.icons-mode #cpMusicPause::before{-webkit-mask-image:url(icons/pause.svg);mask-image:url(icons/pause.svg)}
+/* Previous */
+body.icons-mode #musicPrev::before,body.icons-mode #mediaPrev::before,body.icons-mode #cpMusicPrev::before,body.icons-mode #cpMediaPrev::before{-webkit-mask-image:url(icons/backward-step.svg);mask-image:url(icons/backward-step.svg)}
+/* Next */
+body.icons-mode #musicNext::before,body.icons-mode #mediaNext::before,body.icons-mode #cpMusicNext::before,body.icons-mode #cpMediaNext::before{-webkit-mask-image:url(icons/forward-step.svg);mask-image:url(icons/forward-step.svg)}
+/* Shuffle */
+body.icons-mode #musicShuffle::before{-webkit-mask-image:url(icons/shuffle.svg);mask-image:url(icons/shuffle.svg)}
+/* Add URL */
+body.icons-mode #musicUrlAdd::before,body.icons-mode #mediaUrlAdd::before{-webkit-mask-image:url(icons/plus.svg);mask-image:url(icons/plus.svg)}
+/* Intercom — microphone idle, stop when active */
+body.icons-mode #intercomToggle::before,body.icons-mode #anIntercomToggle::before{-webkit-mask-image:url(icons/microphone.svg);mask-image:url(icons/microphone.svg)}
+body.icons-mode #intercomToggle.active-announcement::before,body.icons-mode #anIntercomToggle.active-announcement::before{-webkit-mask-image:url(icons/stop.svg);mask-image:url(icons/stop.svg)}
+/* Stopwatch / Timer start — play idle, pause when running */
+body.icons-mode #btnStopwatchStart::before,body.icons-mode #anBtnStopwatchStart::before,body.icons-mode #btnTimerStart::before,body.icons-mode #anBtnTimerStart::before{-webkit-mask-image:url(icons/play.svg);mask-image:url(icons/play.svg)}
+body.icons-mode #btnStopwatchStart.btn-running::before,body.icons-mode #anBtnStopwatchStart.btn-running::before,body.icons-mode #btnTimerStart.btn-running::before,body.icons-mode #anBtnTimerStart.btn-running::before{-webkit-mask-image:url(icons/pause.svg);mask-image:url(icons/pause.svg)}
+/* Lap */
+body.icons-mode #btnStopwatchLap::before,body.icons-mode #anBtnStopwatchLap::before{-webkit-mask-image:url(icons/flag.svg);mask-image:url(icons/flag.svg)}
+/* Reset */
+body.icons-mode #btnStopwatchReset::before,body.icons-mode #anBtnStopwatchReset::before,body.icons-mode #btnTimerReset::before,body.icons-mode #anBtnTimerReset::before{-webkit-mask-image:url(icons/rotate-left.svg);mask-image:url(icons/rotate-left.svg)}
+/* Session */
+body.icons-mode #ecpExport::before{-webkit-mask-image:url(icons/floppy-disk.svg);mask-image:url(icons/floppy-disk.svg)}
+body.icons-mode #ecpExportAll::before{-webkit-mask-image:url(icons/file-export.svg);mask-image:url(icons/file-export.svg)}
+/* Slides */
+body.icons-mode #openDisplay::before{-webkit-mask-image:url(icons/display.svg);mask-image:url(icons/display.svg)}
+/* Typed announcement */
+body.icons-mode #showAnnouncementBtn::before{-webkit-mask-image:url(icons/tv.svg);mask-image:url(icons/tv.svg)}
+body.icons-mode #clearAnnouncementBtn::before{-webkit-mask-image:url(icons/xmark.svg);mask-image:url(icons/xmark.svg)}
+
+/* ===== SETTINGS PAGE ===== */
+#settingsPage{justify-content:center}
+.settings-content{max-width:640px;width:100%;display:flex;flex-direction:column;gap:16px}
+.settings-section{display:flex;flex-direction:column}
+.settings-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:14px 0;border-bottom:1px solid #2a2a2a}
+.settings-row:last-child{border-bottom:none;padding-bottom:0}
+.settings-label{flex:1 1 0}
+.settings-label h4{margin:0 0 4px;font-size:.95rem;font-weight:700}
+.settings-label p{margin:0;font-size:.8rem;color:#777;line-height:1.4}
+.settings-toggle{position:relative;display:inline-block;width:50px;height:28px;flex-shrink:0}
+.settings-toggle input{opacity:0;width:0;height:0;margin:0}
+.toggle-track{position:absolute;inset:0;background:#444;border-radius:28px;cursor:pointer;transition:background .2s}
+.toggle-track::before{content:'';position:absolute;height:22px;width:22px;left:3px;bottom:3px;background:#888;border-radius:50%;transition:transform .2s,background .2s}
+.settings-toggle input:checked+.toggle-track{background:#7055e5}
+.settings-toggle input:checked+.toggle-track::before{transform:translateX(22px);background:#fff}
+.github-banner{display:flex;align-items:center;gap:16px;padding:18px 22px;background:#161616;border:1px solid #292929;border-radius:16px;text-decoration:none;color:#eee;transition:background .2s,border-color .2s,transform .15s}
+.github-banner:hover{background:#1e1e22;border-color:#555;transform:translateY(-2px)}
+.github-banner-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+.github-banner-title{font-weight:700;font-size:1rem;letter-spacing:.04em}
+.github-banner-url{font-size:.78rem;color:#7055e5;font-family:'Space Mono',monospace}
+.github-banner-arrow{margin-left:auto;font-size:1.2rem;opacity:.45;flex-shrink:0}
+
+/* ===== LIGHT MODE ===== */
+body.light-mode{background:#f0f2f5;color:#111;--panel-bg:#ffffff}
+body.light-mode .page-nav{background:#e4e6ea;border-top-color:#c8c8cc}
+body.light-mode .page-tab{background:#e4e6ea;color:#555}
+body.light-mode .page-tab:hover{background:#d4d6da;color:#111;border-top-color:#b0b0b8}
+body.light-mode .page-tab--active{background:#d4d6da;color:#111;border-top-color:#7055e5}
+body.light-mode .panel{background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.09)}
+body.light-mode button{background:#e0e0e4;color:#111;border-color:#b8b8be}
+body.light-mode button:hover{background:#d0d0d5;border-color:#888}
+body.light-mode button.action-button.inactive{background:#eaeaee;color:#888;border-color:#c8c8cc}
+body.light-mode .soundboard-button{background:#e0e0e4;border-color:#b8b8be;color:#111}
+body.light-mode .soundboard-button:hover{background:#d0d0d5;border-color:#888}
+body.light-mode input[type=file],body.light-mode input[type=number],body.light-mode select{background:#ededf0;border-color:#c4c4c8;color:#111}
+body.light-mode .url-input-row input[type=text]{background:#ededf0;border-color:#c4c4c8;color:#111}
+body.light-mode textarea{background:#f5f5f8;border-color:#d0d0d4;color:#111}
+body.light-mode .ecp-card,body.light-mode .notes-card,body.light-mode .notes-card-inline{background:#f5f5f8;border-color:#ddd}
+body.light-mode .notes-card-inline h4{color:#444}
+body.light-mode .media-notes-card,body.light-mode .media-mirror{background:#f5f5f8;border-color:#ddd}
+body.light-mode .media-notes-card label,body.light-mode .media-mirror h4{color:#444}
+body.light-mode .mirror-content,body.light-mode .cp-mirror-mini{background:#dde0e6}
+body.light-mode .cp-mirror-content-mini{color:#888}
+body.light-mode .ecp-card .note,body.light-mode .file-type-list,body.light-mode .cp-progression,body.light-mode #status{color:#666}
+body.light-mode .file-label{color:#444}
+body.light-mode li:hover{background:rgba(0,0,0,.04);border-color:#c8c8cc}
+body.light-mode li.active{background:#ede0ff;border-color:#9b6fd4}
+body.light-mode li .progress-underlay{background:rgba(0,0,0,.06)}
+body.light-mode li .item-info span{color:#333}
+body.light-mode li .item-actions button{background:#eaeaee;border-color:#c0c0c6;color:#111}
+body.light-mode li .item-actions button:hover{background:#d8d8dd;border-color:#888}
+body.light-mode li .skip-toggle{color:#444}
+body.light-mode li.skipped .item-info span{color:#999}
+body.light-mode .mode-button span{background:#e0e0e4;border-color:#b8b8be;color:#111}
+body.light-mode .mode-button:hover span{background:#d0d0d5;border-color:#888}
+body.light-mode .cp-clock{background:#ededf0;border-color:#d0d0d4}
+body.light-mode .clock-mode-tabs{background:#e0e0e4;border-color:#d0d0d4}
+body.light-mode .clock-mode-tab{color:#666}
+body.light-mode .clock-mode-tab:hover{background:#d4d4d8;color:#111}
+body.light-mode .clock-mode-tab.active{background:#c8c8cc;color:#111}
+body.light-mode .lap-item{background:#ededf0;border-color:#d0d0d4;color:#444}
+body.light-mode .timer-settings span{color:#666}
+body.light-mode .media-preview{background:#ededf0;border-color:#c8c8cc;color:#111}
+body.light-mode .preview-label{color:#777}
+body.light-mode .preview-icon{background:#d8d8dc;color:#333}
+body.light-mode .preview-thumb{background:#dde0e6}
+body.light-mode .yt-player-card{background:#f5f5f8;border-color:#d0d0d4}
+body.light-mode .yt-player-label{color:#444}
+body.light-mode .spotify-warning{color:#555}
+/* Logo/byline panel always stays dark — never themed */
+body.light-mode #logoBannersPanel{background:#161616;box-shadow:0 0 0 1px rgba(255,255,255,.05)}
+body.light-mode .app-banner-button{background:#111 !important;border-color:#2f2f2f !important;color:#eee !important}
+body.light-mode .app-banner-button:hover{background:#1f1f1f !important;border-color:#444 !important}
+body.light-mode .by-magmalabs-banner{background:#111 !important;border-color:#2f2f2f !important}
+body.light-mode .by-magmalabs-banner:hover{background:#1f1f1f !important;border-color:#444 !important}
+body.light-mode .kofi-button:hover{background:#1f1f1f !important;border-color:#444 !important}
+body.light-mode .brand-banner{background:#f5f5f8;border-color:#d0d0d4;color:#111}
+body.light-mode .brand-banner:hover{background:#e8e8ec;border-color:#b0b0b8}
+body.light-mode .announce-color-label,body.light-mode .announce-opacity-label,body.light-mode .announce-linger-label{color:#444}
+body.light-mode .announce-color-label input[type=color]{border-color:#c0c0c4;background:#ededf0}
+body.light-mode .announce-slider-row span{color:#666}
+body.light-mode .stream-warning{color:#c55}
+body.light-mode .github-banner{background:#f5f5f8;border-color:#ddd;color:#111}
+body.light-mode .github-banner:hover{background:#e8e8ec;border-color:#b0b0b8}
+body.light-mode .settings-row{border-bottom-color:#e0e0e4}
+body.light-mode .settings-label p{color:#888}
+body.light-mode .toggle-track{background:#c8c8cc}
+body.light-mode .toggle-track::before{background:#fff}
+
+/* ===== HIGH CONTRAST ===== */
+/* Dark bg + HC → buttons become light (logo banner exempted) */
+body.high-contrast button:not([class*="active-"]):not(.control-unavailable):not(.app-banner-button){background:#d8d8dc;color:#111;border-color:#888}
+body.high-contrast button:not([class*="active-"]):not(.control-unavailable):not(.app-banner-button):hover{background:#e8e8ec;border-color:#555}
+body.high-contrast .soundboard-button{background:#d8d8dc;color:#111;border-color:#888}
+body.high-contrast .soundboard-button:hover{background:#e8e8ec}
+body.high-contrast .mode-button span{background:#d8d8dc;color:#111;border-color:#888}
+body.high-contrast .mode-button:hover span{background:#e8e8ec}
+body.high-contrast .clock-mode-tab.active{background:#d8d8dc;color:#111}
+body.high-contrast li .item-actions button{background:#d8d8dc;color:#111;border-color:#888}
+body.high-contrast li .item-actions button:hover{background:#e8e8ec}
+body.high-contrast button.action-button.inactive{background:#888;color:#111;border-color:#aaa}
+/* Light bg + HC → buttons become dark (logo banner exempted) */
+body.light-mode.high-contrast button:not([class*="active-"]):not(.control-unavailable):not(.app-banner-button){background:#1e1e22;color:#eee;border-color:#777}
+body.light-mode.high-contrast button:not([class*="active-"]):not(.control-unavailable):not(.app-banner-button):hover{background:#2e2e34;border-color:#aaa}
+body.light-mode.high-contrast .soundboard-button{background:#1e1e22;color:#eee;border-color:#777}
+body.light-mode.high-contrast .soundboard-button:hover{background:#2e2e34}
+body.light-mode.high-contrast .mode-button span{background:#1e1e22;color:#eee;border-color:#777}
+body.light-mode.high-contrast .mode-button:hover span{background:#2e2e34}
+body.light-mode.high-contrast .clock-mode-tab.active{background:#1e1e22;color:#eee}
+body.light-mode.high-contrast li .item-actions button{background:#1e1e22;color:#eee;border-color:#777}
+body.light-mode.high-contrast li .item-actions button:hover{background:#2e2e34}
+body.light-mode.high-contrast button.action-button.inactive{background:#666;color:#eee;border-color:#555}

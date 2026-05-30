@@ -3071,7 +3071,7 @@ function renderLaps() {
 btnStopwatchStart?.addEventListener('click', () => {
   if (!stopwatchRunning) {
     stopwatchRunning = true;
-    if (btnStopwatchStart) btnStopwatchStart.textContent = 'Pause';
+    if (btnStopwatchStart) { btnStopwatchStart.textContent = 'Pause'; btnStopwatchStart.classList.add('btn-running'); }
     if (btnStopwatchLap) btnStopwatchLap.disabled = false;
     const startTime = Date.now() - stopwatchTimeMs;
     stopwatchInterval = setInterval(() => {
@@ -3080,7 +3080,7 @@ btnStopwatchStart?.addEventListener('click', () => {
     }, 100);
   } else {
     stopwatchRunning = false;
-    if (btnStopwatchStart) btnStopwatchStart.textContent = 'Start';
+    if (btnStopwatchStart) { btnStopwatchStart.textContent = 'Start'; btnStopwatchStart.classList.remove('btn-running'); }
     if (btnStopwatchLap) btnStopwatchLap.disabled = true;
     clearInterval(stopwatchInterval);
   }
@@ -3099,7 +3099,7 @@ btnStopwatchReset?.addEventListener('click', () => {
   lapTimes = [];
   updateStopwatchDisplay();
   renderLaps();
-  if (btnStopwatchStart) btnStopwatchStart.textContent = 'Start';
+  if (btnStopwatchStart) { btnStopwatchStart.textContent = 'Start'; btnStopwatchStart.classList.remove('btn-running'); }
   if (btnStopwatchLap) btnStopwatchLap.disabled = true;
 });
 
@@ -3141,7 +3141,7 @@ btnTimerStart?.addEventListener('click', () => {
     if (timerSecondsRemaining <= 0) return;
 
     timerRunning = true;
-    if (btnTimerStart) btnTimerStart.textContent = 'Pause';
+    if (btnTimerStart) { btnTimerStart.textContent = 'Pause'; btnTimerStart.classList.add('btn-running'); }
 
     timerInterval = setInterval(() => {
       timerSecondsRemaining--;
@@ -3150,13 +3150,13 @@ btnTimerStart?.addEventListener('click', () => {
       if (timerSecondsRemaining <= 0) {
         clearInterval(timerInterval);
         timerRunning = false;
-        if (btnTimerStart) btnTimerStart.textContent = 'Start';
+        if (btnTimerStart) { btnTimerStart.textContent = 'Start'; btnTimerStart.classList.remove('btn-running'); }
         flashTimerAlert();
       }
     }, 1000);
   } else {
     timerRunning = false;
-    if (btnTimerStart) btnTimerStart.textContent = 'Start';
+    if (btnTimerStart) { btnTimerStart.textContent = 'Start'; btnTimerStart.classList.remove('btn-running'); }
     clearInterval(timerInterval);
   }
 });
@@ -3166,7 +3166,7 @@ btnTimerReset?.addEventListener('click', () => {
   clearInterval(timerInterval);
   timerSecondsRemaining = readTimerInputs();
   updateTimerDisplay();
-  if (btnTimerStart) btnTimerStart.textContent = 'Start';
+  if (btnTimerStart) { btnTimerStart.textContent = 'Start'; btnTimerStart.classList.remove('btn-running'); }
   stopFlashTimerAlert();
 });
 
@@ -3252,11 +3252,17 @@ anTimerInputSec?.addEventListener('input', () => {
   if (!timerRunning) { timerSecondsRemaining = readTimerInputs(); updateTimerDisplay(); stopFlashTimerAlert(); }
 });
 
-// Sync announce clock button text/disabled states from main buttons (100ms poll)
+// Sync announce clock button text/disabled/icon states from main buttons (100ms poll)
 setInterval(() => {
-  if (anBtnStopwatchStart && btnStopwatchStart) anBtnStopwatchStart.textContent = btnStopwatchStart.textContent;
+  if (anBtnStopwatchStart && btnStopwatchStart) {
+    anBtnStopwatchStart.textContent = btnStopwatchStart.textContent;
+    anBtnStopwatchStart.classList.toggle('btn-running', btnStopwatchStart.classList.contains('btn-running'));
+  }
   if (anBtnStopwatchLap && btnStopwatchLap) anBtnStopwatchLap.disabled = btnStopwatchLap.disabled;
-  if (anBtnTimerStart && btnTimerStart) anBtnTimerStart.textContent = btnTimerStart.textContent;
+  if (anBtnTimerStart && btnTimerStart) {
+    anBtnTimerStart.textContent = btnTimerStart.textContent;
+    anBtnTimerStart.classList.toggle('btn-running', btnTimerStart.classList.contains('btn-running'));
+  }
 }, 100);
 
 // --- Announce page soundboard ---
@@ -3340,4 +3346,39 @@ document.getElementById('clearAnnouncementBtn')?.addEventListener('click', clear
   if (anTimerInputSec && timerInputSec) anTimerInputSec.value = timerInputSec.value;
   // Sync soundboard volume
   if (announceSoundboardVolume && soundboardVolume) announceSoundboardVolume.value = soundboardVolume.value;
+})();
+
+// ===== SETTINGS PAGE =====
+(function initSettings() {
+  function applyTheme(lightMode, highContrast, iconsMode) {
+    document.body.classList.toggle('light-mode', lightMode);
+    document.body.classList.toggle('high-contrast', highContrast);
+    document.body.classList.toggle('icons-mode', iconsMode);
+  }
+
+  const lightMode    = localStorage.getItem('ecp-light-mode')    === 'true';
+  const highContrast = localStorage.getItem('ecp-high-contrast') === 'true';
+  const iconsMode    = localStorage.getItem('ecp-icons-mode')    === 'true';
+  applyTheme(lightMode, highContrast, iconsMode);
+
+  const chkLight    = document.getElementById('settingLightMode');
+  const chkContrast = document.getElementById('settingHighContrast');
+  const chkIcons    = document.getElementById('settingIconsMode');
+
+  if (chkLight)    chkLight.checked    = lightMode;
+  if (chkContrast) chkContrast.checked = highContrast;
+  if (chkIcons)    chkIcons.checked    = iconsMode;
+
+  chkLight?.addEventListener('change', function () {
+    localStorage.setItem('ecp-light-mode', this.checked);
+    document.body.classList.toggle('light-mode', this.checked);
+  });
+  chkContrast?.addEventListener('change', function () {
+    localStorage.setItem('ecp-high-contrast', this.checked);
+    document.body.classList.toggle('high-contrast', this.checked);
+  });
+  chkIcons?.addEventListener('change', function () {
+    localStorage.setItem('ecp-icons-mode', this.checked);
+    document.body.classList.toggle('icons-mode', this.checked);
+  });
 })();

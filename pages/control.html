@@ -1,0 +1,165 @@
+      <!-- Top row: Logo Banners | Session + Intercom | Stopwatch/Timer/Clock -->
+      <div class="cp-top-row">
+
+        <section id="logoBannersPanel" class="panel cp-panel cp-logo-banners">
+          <div class="brand-stack">
+            <button id="appBanner" class="app-banner-button" type="button" aria-label="Reload Event Control Panel">
+              <img src="ecp-banner.png" alt="Event Control Panel">
+            </button>
+            <div class="brand-links">
+              <a class="by-magmalabs-banner" href="https://magmalabs.dev/" target="_blank" rel="noopener">
+                <img src="by-magmalabs.png" alt="By MagmaLabs">
+              </a>
+              <a class="kofi-button" href="https://ko-fi.com/magmalabs" target="_blank" rel="noopener"
+                aria-label="Support MagmaLabs on Ko-fi">
+                <img src="kofi.png" alt="Ko-fi">
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <section id="sessionIntercomPanel" class="panel cp-panel cp-session-intercom">
+          <div class="cp-session-intercom-inner">
+            <div class="cp-subsection">
+              <h3>Session</h3>
+              <div class="row wrap">
+                <label>Loaded preset:<br>
+                  <select id="presetSelect">
+                    <option value="">No presets loaded</option>
+                  </select>
+                </label>
+                <button id="ecpExport" class="action-button" title="Export preset">Export preset</button>
+                <button id="ecpExportAll" class="action-button" title="Export all">Export all</button>
+              </div>
+              <div class="row wrap">
+                <label class="file-label">Import preset(s)<br>
+                  <input id="ecpImportFile" type="file" accept=".ecp,.json,application/json" multiple
+                    aria-describedby="ecpFileTypes">
+                  <span id="ecpFileTypes" class="file-type-list">Supported: ECP session (.ecp), JSON (.json).</span>
+                </label>
+              </div>
+            </div>
+            <div class="cp-subsection">
+              <h3>Intercom</h3>
+              <div class="row">
+                <div class="mode-buttons">
+                  <label class="mode-button"><input type="radio" name="mode" value="live"
+                      checked><span>Live</span></label>
+                  <label class="mode-button"><input type="radio" name="mode"
+                      value="recorded"><span>Recorded</span></label>
+                </div>
+                <div class="field-group">
+                  <label>Vol: <input id="intercomVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+                </div>
+              </div>
+              <div class="row wrap">
+                <label>Input:<br><select id="inputDeviceSelect"></select></label>
+                <label>Output:<br><select id="outputDeviceSelect"></select></label>
+              </div>
+              <div class="row wrap">
+                <label><input id="pauseMusicDuringAnnouncement" type="checkbox" checked> Pause music</label>
+                <label><input id="fadeMusic" type="checkbox"> Fade music</label>
+              </div>
+              <button id="intercomToggle" class="action-button" title="Toggle Announcement">Start Announcement</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="stopwatchPanel" class="panel cp-panel cp-stopwatch">
+          <h3>Stopwatch / Timer / Clock</h3>
+
+          <!-- Mode Tabs -->
+          <div class="clock-mode-tabs">
+            <button id="btnClockMode" class="clock-mode-tab active" type="button">Clock</button>
+            <button id="btnStopwatchMode" class="clock-mode-tab" type="button">Stopwatch</button>
+            <button id="btnTimerMode" class="clock-mode-tab" type="button">Timer</button>
+          </div>
+
+          <!-- Clock Display -->
+          <div id="clockDisplay" class="clock-display-content">
+            <div id="time" class="cp-clock">--:--:--</div>
+          </div>
+
+          <!-- Stopwatch Display -->
+          <div id="stopwatchDisplay" class="clock-display-content hidden">
+            <div id="stopwatchTime" class="cp-clock">00:00.0</div>
+            <div class="clock-controls">
+              <button id="btnStopwatchStart" class="action-button" type="button" title="Start / Pause">Start</button>
+              <button id="btnStopwatchLap" class="action-button" type="button" title="Lap" disabled>Lap</button>
+              <button id="btnStopwatchReset" class="action-button" type="button" title="Reset">Reset</button>
+            </div>
+            <div id="lapList" class="lap-list"></div>
+          </div>
+
+          <!-- Timer Display -->
+          <div id="timerDisplay" class="clock-display-content hidden">
+            <div id="timerTime" class="cp-clock">05:00</div>
+            <div class="timer-settings">
+              <input id="timerInputMin" type="number" min="0" max="99" value="5" placeholder="Min" class="timer-input">
+              <span>:</span>
+              <input id="timerInputSec" type="number" min="0" max="59" value="0" placeholder="Sec" class="timer-input">
+            </div>
+            <div class="clock-controls">
+              <button id="btnTimerStart" class="action-button" type="button" title="Start / Pause">Start</button>
+              <button id="btnTimerReset" class="action-button" type="button" title="Reset">Reset</button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Bottom row: Music (mini) | Slides (mini) | Blank -->
+      <div class="cp-bottom-row">
+
+        <section id="cpMusicPanel" class="panel cp-panel cp-music-mini">
+          <h3>Music</h3>
+          <div id="cpCurrentSong" class="cp-now-playing">No song</div>
+          <div id="cpMusicProgression" class="cp-progression">0:00 / 0:00</div>
+          <div class="cp-mini-controls">
+            <button id="cpMusicPlay" class="action-button" title="Autoplay">Autoplay</button>
+            <button id="cpMusicNext" class="action-button" title="Next">Next</button>
+          </div>
+          <div class="cp-mini-controls">
+            <button id="cpMusicPause" class="action-button" title="Pause">Pause</button>
+            <button id="cpMusicPrev" class="action-button" title="Previous">Previous</button>
+          </div>
+          <div>
+            <label>Vol: <input id="cpMusicVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+          </div>
+          <div class="row wrap" style="margin-top: 6px; gap: 8px; font-size: 0.75rem;">
+            <label><input id="cpMusicPlayOnFinish" type="checkbox" checked> Play on finish</label>
+            <label><input id="cpMusicTransition" type="checkbox" checked> Crossfade</label>
+          </div>
+        </section>
+
+        <section id="cpSlidesPanel" class="panel cp-panel cp-slides-mini">
+          <h3>Slides</h3>
+          <div id="cpCurrentMedia" class="cp-now-playing">No media</div>
+          <div id="cpMediaMirror" class="cp-mirror-mini">
+            <div id="cpMediaMirrorContent" class="cp-mirror-content-mini">Nothing displayed</div>
+          </div>
+          <div class="cp-mini-controls">
+            <button id="cpMediaPrev" class="action-button" title="Previous">Previous</button>
+            <button id="cpMediaNext" class="action-button" title="Next">Next</button>
+          </div>
+          <div class="row wrap" style="margin-top: 4px; gap: 8px; font-size: 0.75rem; margin-bottom: 4px;">
+            <label><input id="cpMediaPlayOnFinish" type="checkbox" checked> Play on finish</label>
+            <label><input id="cpMediaTransition" type="checkbox" checked> Fade</label>
+          </div>
+          <div id="cpNotesRow" class="cp-notes-mini">
+            <textarea id="cpMediaNotes" rows="2" placeholder="Notes" disabled></textarea>
+          </div>
+        </section>
+
+        <section id="cpBlankPanel" class="panel cp-panel cp-blank">
+          <div id="status"></div>
+          <div class="cp-settings-footer">
+            <label>Master vol: <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+            <div id="sessionNotesPanel" class="notes-card-inline">
+              <h4>Notes</h4>
+              <textarea id="sessionNotes" rows="3" placeholder="Session notes"></textarea>
+            </div>
+          </div>
+        </section>
+
+      </div>
