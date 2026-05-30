@@ -318,7 +318,7 @@ body.icons-mode #showAnnouncementBtn::before{-webkit-mask-image:url(icons/tv.svg
 body.icons-mode #clearAnnouncementBtn::before{-webkit-mask-image:url(icons/xmark.svg);mask-image:url(icons/xmark.svg)}
 
 /* ===== SETTINGS PAGE ===== */
-#settingsPage{justify-content:center}
+#settingsPage{justify-content:center;align-items:flex-start}
 .settings-content{max-width:640px;width:100%;display:flex;flex-direction:column;gap:16px}
 .settings-section{display:flex;flex-direction:column}
 .settings-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:14px 0;border-bottom:1px solid #2a2a2a}
@@ -429,3 +429,35 @@ body.light-mode.high-contrast .clock-mode-tab.active{background:#1e1e22;color:#e
 body.light-mode.high-contrast li .item-actions button{background:#1e1e22;color:#eee;border-color:#777}
 body.light-mode.high-contrast li .item-actions button:hover{background:#2e2e34}
 body.light-mode.high-contrast button.action-button.inactive{background:#666;color:#eee;border-color:#555}
+
+/* ===== SOUNDBOARD ITEM (star + delete) ===== */
+.soundboard-item{display:flex;gap:4px;align-items:stretch}
+.soundboard-item .soundboard-button{flex:1 1 auto;min-width:0}
+.sb-actions{display:flex;flex-direction:column;gap:3px;justify-content:center;flex-shrink:0}
+.sb-star-btn,.sb-delete-btn{width:22px;height:22px;padding:0;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#666;cursor:pointer;font-size:.8rem;line-height:1;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.sb-star-btn:hover{background:rgba(255,200,0,.18);color:#ffd700;border-color:rgba(255,215,0,.5)}
+.sb-delete-btn:hover{background:rgba(180,40,40,.3);color:#ff8080;border-color:#c44}
+.sb-star-btn.starred{color:#ffd700;border-color:rgba(255,215,0,.35);background:rgba(255,200,0,.1)}
+
+/* CP starred sounds */
+.cp-starred-section{margin-top:8px;padding-top:8px;border-top:1px solid #2a2a2a;flex-shrink:0}
+.cp-starred-section h4{margin:0 0 6px;font-size:.75rem;color:#777;text-transform:uppercase;letter-spacing:.05em}
+.cp-starred-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:5px;max-height:110px;overflow-y:auto}
+.cp-starred-grid .soundboard-button{padding:6px 8px;font-size:.72rem;border-radius:8px;width:100%}
+
+/* Queue next button in media list */
+.queue-next-btn{padding:4px 8px;font-size:.75rem;border-radius:8px;border:1px solid #555;background:#2e2e2e;color:#aaa;white-space:nowrap;transition:background .15s,color .15s,border-color .15s}
+.queue-next-btn:hover{background:#3a3a3a;border-color:#888;color:#eee}
+.queue-next-btn.queued{background:#7055e5;border-color:#9070ff;color:#fff}
+.queue-next-btn.queued:hover{background:#5a40d0;border-color:#7055e5}
+
+/* ===== LIGHT MODE additions ===== */
+body.light-mode .sb-star-btn,body.light-mode .sb-delete-btn{background:rgba(0,0,0,.05);border-color:rgba(0,0,0,.14);color:#999}
+body.light-mode .sb-star-btn.starred{color:#b8860b;border-color:rgba(184,134,11,.35);background:rgba(184,134,11,.08)}
+body.light-mode .sb-star-btn:hover{background:rgba(184,134,11,.15);color:#b8860b;border-color:#b8860b}
+body.light-mode .sb-delete-btn:hover{background:rgba(180,40,40,.12);color:#c33;border-color:#d55}
+body.light-mode .cp-starred-section{border-top-color:#e0e0e4}
+body.light-mode .cp-starred-section h4{color:#aaa}
+body.light-mode .queue-next-btn{background:#ededf0;border-color:#c4c4c8;color:#666}
+body.light-mode .queue-next-btn:hover{background:#d8d8dc;border-color:#888;color:#111}
+body.light-mode .queue-next-btn.queued{background:#7055e5;border-color:#9070ff;color:#fff}

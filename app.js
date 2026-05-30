@@ -30,6 +30,8 @@ let mediaPlaying = false;
 let mediaLooping = false;
 let mediaLoopMode = 'off';
 let mediaProgressInterval = null;
+let queuedMediaNext = null;
+let queuedMusicNext = null;
 
 // Elements
 const musicFiles = document.getElementById('musicFiles');
@@ -93,8 +95,6 @@ const musicPlayOnFinish = document.getElementById('musicPlayOnFinish');
 const cpMusicPlayOnFinish = document.getElementById('cpMusicPlayOnFinish');
 const musicTransition = document.getElementById('musicTransition');
 const cpMusicTransition = document.getElementById('cpMusicTransition');
-const mediaPlayOnFinish = document.getElementById('mediaPlayOnFinish');
-const cpMediaPlayOnFinish = document.getElementById('cpMediaPlayOnFinish');
 const mediaTransition = document.getElementById('mediaTransition');
 const cpMediaTransition = document.getElementById('cpMediaTransition');
 
@@ -587,6 +587,11 @@ function onYtStateChange(event) {
       try { ytPlayer.seekTo(0); ytPlayer.playVideo(); } catch {}
       return;
     }
+    if (queuedMusicNext) {
+      const idx = songs.indexOf(queuedMusicNext);
+      queuedMusicNext = null;
+      if (idx !== -1) { playSongAt(idx); return; }
+    }
     if (musicPlayOnFinish && !musicPlayOnFinish.checked) {
       musicPlaying = false; updateMusicUI(); updateButtonStates(); return;
     }
@@ -637,6 +642,11 @@ function handleSpotifyTrackEnd() {
   if (musicLoopMode === 'single') {
     try { spotifyController.seek(0); spotifyController.play(); } catch {}
     return;
+  }
+  if (queuedMusicNext) {
+    const idx = songs.indexOf(queuedMusicNext);
+    queuedMusicNext = null;
+    if (idx !== -1) { playSongAt(idx); return; }
   }
   if (musicPlayOnFinish && !musicPlayOnFinish.checked) {
     musicPlaying = false; updateMusicUI(); updateButtonStates(); return;
@@ -1823,6 +1833,34 @@ function createListItem(item, index, type){
     actions.appendChild(skipLabel);
   }
 
+  if (type === 'music') {
+    const isMQueued = queuedMusicNext === item;
+    const mqBtn = document.createElement('button');
+    mqBtn.className = 'queue-next-btn' + (isMQueued ? ' queued' : '');
+    mqBtn.textContent = isMQueued ? '▶ Queued' : '▶ Queue';
+    mqBtn.title = 'Queue this to play next after current song finishes';
+    mqBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      queuedMusicNext = (queuedMusicNext === item) ? null : item;
+      renderMusicQueue();
+    });
+    actions.appendChild(mqBtn);
+  }
+
+  if (type === 'media') {
+    const isQueued = queuedMediaNext === item;
+    const queueBtn = document.createElement('button');
+    queueBtn.className = 'queue-next-btn' + (isQueued ? ' queued' : '');
+    queueBtn.textContent = isQueued ? '▶ Queued' : '▶ Queue';
+    queueBtn.title = 'Queue this to play next after current item finishes';
+    queueBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      queuedMediaNext = (queuedMediaNext === item) ? null : item;
+      renderMediaQueue();
+    });
+    actions.appendChild(queueBtn);
+  }
+
   const up = document.createElement('button'); up.textContent = '↑';
   const down = document.createElement('button'); down.textContent = '↓';
   const remove = document.createElement('button'); remove.textContent = 'Delete';
@@ -1864,6 +1902,8 @@ function moveItem(type, index, offset){
 function removeItem(type, index){
   const list = type === 'music' ? songs : media;
   const currentIndex = type === 'music' ? currentSongIndex : currentMediaIndex;
+  if (type === 'music' && queuedMusicNext === list[index]) queuedMusicNext = null;
+  if (type === 'media' && queuedMediaNext === list[index]) queuedMediaNext = null;
   list.splice(index, 1);
   if (type === 'music') {
     if (currentIndex === index) { musicAudio.pause(); musicPlaying = false; currentSongIndex = -1; }
@@ -1974,21 +2014,53 @@ function renderMusicQueue(){
 }
 
 function makeSoundboardButton(s) {
+  const item = document.createElement('div');
+  item.className = 'soundboard-item';
+
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'soundboard-button';
   button.textContent = s.name;
-  button.addEventListener('click', ()=>{
+  button.addEventListener('click', () => {
     const sound = new Audio(s.url);
     const m = parseFloat(masterVolume?.value) || 1;
     const sv = parseFloat(soundboardVolume?.value) || 1;
     sound.volume = m * sv;
-    if (selectedOutputDeviceId && typeof sound.setSinkId === 'function'){
-      sound.setSinkId(selectedOutputDeviceId).catch(err=>{ console.warn('Unable to route soundboard audio:', err); });
+    if (selectedOutputDeviceId && typeof sound.setSinkId === 'function') {
+      sound.setSinkId(selectedOutputDeviceId).catch(() => {});
     }
-    sound.play().catch(()=>{});
+    sound.play().catch(() => {});
   });
-  return button;
+
+  const sbActions = document.createElement('div');
+  sbActions.className = 'sb-actions';
+
+  const starBtn = document.createElement('button');
+  starBtn.type = 'button';
+  starBtn.className = 'sb-star-btn' + (s.starred ? ' starred' : '');
+  starBtn.title = s.starred ? 'Unstar' : 'Star';
+  starBtn.textContent = '★';
+  starBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    s.starred = !s.starred;
+    renderSoundboardGrid();
+  });
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.type = 'button';
+  deleteBtn.className = 'sb-delete-btn';
+  deleteBtn.title = 'Delete';
+  deleteBtn.textContent = '×';
+  deleteBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const idx = soundboardSounds.indexOf(s);
+    if (idx !== -1) soundboardSounds.splice(idx, 1);
+    renderSoundboardGrid();
+  });
+
+  sbActions.append(starBtn, deleteBtn);
+  item.append(button, sbActions);
+  return item;
 }
 
 function renderSoundboardGrid(){
@@ -2001,6 +2073,33 @@ function renderSoundboardGrid(){
     soundboardSounds.forEach(s => announceSoundboardGrid.appendChild(makeSoundboardButton(s)));
   }
   updateIntercomSoundCueSelect();
+  renderStarredSoundsCP();
+}
+
+function renderStarredSoundsCP() {
+  const grid = document.getElementById('cpStarredGrid');
+  const section = document.getElementById('cpStarredSection');
+  if (!grid || !section) return;
+  const starred = soundboardSounds.filter(s => s.starred);
+  section.style.display = starred.length ? '' : 'none';
+  grid.innerHTML = '';
+  starred.forEach(s => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'soundboard-button';
+    btn.textContent = s.name;
+    btn.addEventListener('click', () => {
+      const sound = new Audio(s.url);
+      const m = parseFloat(masterVolume?.value) || 1;
+      const sv = parseFloat(soundboardVolume?.value) || 1;
+      sound.volume = m * sv;
+      if (selectedOutputDeviceId && typeof sound.setSinkId === 'function') {
+        sound.setSinkId(selectedOutputDeviceId).catch(() => {});
+      }
+      sound.play().catch(() => {});
+    });
+    grid.appendChild(btn);
+  });
 }
 
 function updateIntercomSoundCueSelect() {
@@ -2207,6 +2306,11 @@ musicAudio.addEventListener('ended', ()=>{
     musicAudio.play();
     return;
   }
+  if (queuedMusicNext) {
+    const idx = songs.indexOf(queuedMusicNext);
+    queuedMusicNext = null;
+    if (idx !== -1) { playSongAt(idx); return; }
+  }
   // Play on finish logic
   if (musicPlayOnFinish && !musicPlayOnFinish.checked) {
     musicPlaying = false;
@@ -2372,7 +2476,7 @@ function updateButtonStates(){
   intercomToggle.classList.toggle('active-announcement', intercomActive);
   intercomToggle.classList.toggle('inactive', !intercomActive);
   if (anIntercomToggle) {
-    anIntercomToggle.textContent = intercomActive ? 'Stop Announcement' : 'Start Announcement';
+    anIntercomToggle.textContent = getIntercomButtonText(intercomActive);
     anIntercomToggle.classList.toggle('active-announcement', intercomActive);
     anIntercomToggle.classList.toggle('inactive', !intercomActive);
   }
@@ -2649,13 +2753,11 @@ function advanceMedia(){
     showMediaAt(currentMediaIndex);
     return;
   }
-  // Play on finish logic
-  if (mediaPlayOnFinish && !mediaPlayOnFinish.checked) {
-    mediaPlaying = false;
-    mediaLooping = false;
-    stopMediaLoop();
-    updateButtonStates();
-    return;
+  // Queue next override
+  if (queuedMediaNext) {
+    const idx = media.indexOf(queuedMediaNext);
+    queuedMediaNext = null;
+    if (idx !== -1) { showMediaAt(idx); return; }
   }
   const nextIndex = findNextPlayableMediaIndex(currentMediaIndex, 1);
   if (nextIndex !== -1) {
@@ -2721,6 +2823,12 @@ function stopMediaLoop(){
 }
 
 // INTERCOM
+function getIntercomButtonText(active) {
+  const mode = document.querySelector('input[name="mode"]:checked')?.value || 'live';
+  if (active) return mode === 'recorded' ? 'Stop Recording' : 'Stop Announcement';
+  return mode === 'recorded' ? 'Start Recording' : 'Start Announcement';
+}
+
 let mediaStream = null;
 let mediaRecorder = null;
 let recordedChunks = [];
@@ -2753,7 +2861,7 @@ async function startIntercom(){
   }
 
   intercomActive = true;
-  intercomToggle.textContent = 'Stop Announcement';
+  intercomToggle.textContent = getIntercomButtonText(true);
   updateButtonStates();
   // pause/fade music
   handleMusicForAnnouncement(true);
@@ -2785,7 +2893,7 @@ async function stopIntercom(){
   // stop tracks
   if (mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); mediaStream=null; }
   intercomActive=false;
-  intercomToggle.textContent='Start Announcement';
+  intercomToggle.textContent=getIntercomButtonText(false);
   updateButtonStates();
 }
 
@@ -2992,10 +3100,6 @@ if (musicTransition && cpMusicTransition) {
 }
 
 // Sync Slides checkboxes
-if (mediaPlayOnFinish && cpMediaPlayOnFinish) {
-  mediaPlayOnFinish.addEventListener('change', () => { cpMediaPlayOnFinish.checked = mediaPlayOnFinish.checked; });
-  cpMediaPlayOnFinish.addEventListener('change', () => { mediaPlayOnFinish.checked = cpMediaPlayOnFinish.checked; });
-}
 if (mediaTransition && cpMediaTransition) {
   mediaTransition.addEventListener('change', () => { cpMediaTransition.checked = mediaTransition.checked; });
   cpMediaTransition.addEventListener('change', () => { mediaTransition.checked = cpMediaTransition.checked; });
@@ -3188,12 +3292,16 @@ function stopFlashTimerAlert() {
 document.querySelectorAll('input[name="an-mode"]').forEach(r => {
   r.addEventListener('change', () => {
     document.querySelectorAll('input[name="mode"]').forEach(m => { m.checked = m.value === r.value; });
+    if (intercomToggle) intercomToggle.textContent = getIntercomButtonText(intercomActive);
+    if (anIntercomToggle) anIntercomToggle.textContent = getIntercomButtonText(intercomActive);
   });
 });
 // Mode radios: CP → announce
 document.querySelectorAll('input[name="mode"]').forEach(r => {
   r.addEventListener('change', () => {
     document.querySelectorAll('input[name="an-mode"]').forEach(m => { m.checked = m.value === r.value; });
+    if (intercomToggle) intercomToggle.textContent = getIntercomButtonText(intercomActive);
+    if (anIntercomToggle) anIntercomToggle.textContent = getIntercomButtonText(intercomActive);
   });
 });
 
