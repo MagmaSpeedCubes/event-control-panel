@@ -11,7 +11,7 @@
     href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;700&family=Saira:ital,wght@0,400;0,700;1,400;1,700&family=Space+Mono:wght@400;700&display=swap"
     rel="stylesheet">
   <link rel="icon" href="ecp-logo.png" type="image/png">
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 
 <body>
@@ -20,7 +20,7 @@
     <div id="announcePage" class="page page--hidden"></div>
     <div id="audioPage" class="page page--hidden"></div>
     <div id="controlPage" class="page page--noscroll"></div>
-    <div id="slidesPage" class="page page--hidden"></div>
+    <div id="visualsPage" class="page page--hidden"></div>
 
     <!-- Stream player containers — outside page divs so iframes always stay initialized -->
     <div id="ytPlayerContainer" class="yt-player-card">
@@ -42,7 +42,7 @@
       <button id="tabAnnounce" class="page-tab" data-page="announcePage" type="button">Announce</button>
       <button id="tabAudio" class="page-tab" data-page="audioPage" type="button">Audio</button>
       <button id="tabControl" class="page-tab page-tab--active" data-page="controlPage" type="button">Control Panel</button>
-      <button id="tabSlides" class="page-tab" data-page="slidesPage" type="button">Slides</button>
+      <button id="tabVisuals" class="page-tab" data-page="visualsPage" type="button">Visuals</button>
       <button id="tabSettings" class="page-tab" data-page="settingsPage" type="button">Settings</button>
     </nav>
   </div>
@@ -54,7 +54,7 @@
         { id: 'announcePage', src: 'pages/announce.html' },
         { id: 'audioPage',    src: 'pages/audio.html' },
         { id: 'controlPage',  src: 'pages/control.html' },
-        { id: 'slidesPage',   src: 'pages/slides.html' },
+        { id: 'visualsPage',  src: 'pages/visuals.html' },
         { id: 'settingsPage', src: 'pages/settings.html' },
       ];
       var pending = fragments.length;
@@ -64,7 +64,7 @@
           fillout.src = 'https://server.fillout.com/embed/v1/';
           document.body.appendChild(fillout);
           var s = document.createElement('script');
-          s.src = 'app.js?v=5';
+          s.src = 'app.js?v=6';
           document.body.appendChild(s);
         }
       }

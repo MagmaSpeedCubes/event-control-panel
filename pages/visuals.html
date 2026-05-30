@@ -1,0 +1,72 @@
+      <section id="visualsControlSection" class="panel">
+        <h3>Visuals / Media Controls</h3>
+        <div id="currentMedia">No media</div>
+        <ul id="mediaQueue"></ul>
+        <div class="controls">
+          <button id="mediaPrev" class="action-button" title="Previous">Previous</button>
+          <button id="mediaPlay" class="action-button" title="Autoplay">Autoplay</button>
+          <button id="mediaPause" class="action-button" title="Pause">Pause</button>
+          <button id="mediaNext" class="action-button" title="Next">Next</button>
+          <label>Loop mode:<br>
+            <select id="mediaLoopMode">
+              <option value="off">Off</option>
+              <option value="single">Loop single</option>
+              <option value="all">Loop all</option>
+            </select>
+          </label>
+          <label>Transition (s): <input id="transitionTime" type="number" min="1" value="5"></label>
+          <div class="row wrap" style="margin-top: 10px; gap: 12px; font-size: 0.9rem;">
+            <label><input id="mediaTransition" type="checkbox" checked> Fade transition</label>
+          </div>
+          <div class="row wrap">
+            <label><input id="mediaMuteAudio" type="checkbox" checked> Mute video audio</label>
+          </div>
+          <div id="mediaNotesCard" class="media-notes-card">
+            <label for="mediaNotes">Selected slide notes</label>
+            <textarea id="mediaNotes" rows="4" placeholder="Select an image or slide to edit notes" disabled></textarea>
+          </div>
+          <div class="file-input-box">
+            <input id="mediaFiles" type="file"
+              accept="image/*,video/*,.pdf,application/pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+              multiple aria-describedby="mediaFileTypes">
+            <div id="mediaFileTypes" class="file-type-list">Supported: images, videos, PDF pages (.pdf), and PowerPoint
+              slides (.pptx).</div>
+          </div>
+          <div class="url-input-section">
+            <div class="url-input-row">
+              <input id="mediaUrlInput" type="text" placeholder="Paste YouTube video or Google Drive shared file URL...">
+              <button id="mediaUrlAdd" class="action-button" type="button" title="Add URL">Add</button>
+            </div>
+            <div class="file-type-list">Add YouTube videos or Google Drive shared files by URL. File must be publicly shared for Google Drive.</div>
+          </div>
+          <div class="open-display-row">
+            <button id="openDisplay" class="action-button" title="Open Display Window">Open Display Window</button>
+          </div>
+      </section>
+
+      <section class="panel presenter-section">
+        <h3>Presenter</h3>
+        <div id="mediaMirror" class="media-mirror">
+          <h4>Mirror Display</h4>
+          <div id="mirrorUnsyncWarning" class="mirror-unsync-warning" style="display:none">
+            ⚠ Web video — mirror is not in sync with the display window. Press play manually there.
+          </div>
+          <div id="mediaMirrorContent" class="mirror-content">Nothing displayed</div>
+          <div id="mediaPreviewRow" class="media-preview-row">
+            <button id="mediaPrevPreview" class="media-preview preview-prev" type="button"
+              aria-label="Previous slide preview" disabled>
+              <div class="preview-label">Previous</div>
+              <div class="preview-content">No preview</div>
+            </button>
+            <button id="mediaNextPreview" class="media-preview preview-next" type="button"
+              aria-label="Next slide preview" disabled>
+              <div class="preview-label">Next</div>
+              <div class="preview-content">No preview</div>
+            </button>
+          </div>
+        </div>
+        <div id="presenterNotesCard" class="media-notes-card">
+          <label>Presenter notes</label>
+          <textarea id="presenterNotes" rows="5" placeholder="Presenter notes" disabled></textarea>
+        </div>
+      </section>
