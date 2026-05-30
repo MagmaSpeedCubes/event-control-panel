@@ -2,9 +2,12 @@
 
 // Time display
 const timeEl = document.getElementById('time');
+const anTimeEl = document.getElementById('anTime');
 function updateTime(){
   const d=new Date();
-  if (timeEl) timeEl.textContent = d.toLocaleTimeString();
+  const t = d.toLocaleTimeString();
+  if (timeEl) timeEl.textContent = t;
+  if (anTimeEl) anTimeEl.textContent = t;
 }
 setInterval(updateTime,1000);
 updateTime();
@@ -115,6 +118,32 @@ const timerInputMin = document.getElementById('timerInputMin');
 const timerInputSec = document.getElementById('timerInputSec');
 const stopwatchPanel = document.getElementById('stopwatchPanel');
 
+// Announce page elements
+const anStopwatchPanel = document.getElementById('anStopwatchPanel');
+const anClockDisplay = document.getElementById('anClockDisplay');
+const anStopwatchDisplay = document.getElementById('anStopwatchDisplay');
+const anTimerDisplay = document.getElementById('anTimerDisplay');
+const anBtnClockMode = document.getElementById('anBtnClockMode');
+const anBtnStopwatchMode = document.getElementById('anBtnStopwatchMode');
+const anBtnTimerMode = document.getElementById('anBtnTimerMode');
+const anStopwatchTimeEl = document.getElementById('anStopwatchTime');
+const anTimerTimeEl = document.getElementById('anTimerTime');
+const anBtnStopwatchStart = document.getElementById('anBtnStopwatchStart');
+const anBtnStopwatchLap = document.getElementById('anBtnStopwatchLap');
+const anBtnStopwatchReset = document.getElementById('anBtnStopwatchReset');
+const anBtnTimerStart = document.getElementById('anBtnTimerStart');
+const anBtnTimerReset = document.getElementById('anBtnTimerReset');
+const anTimerInputMin = document.getElementById('anTimerInputMin');
+const anTimerInputSec = document.getElementById('anTimerInputSec');
+const anLapList = document.getElementById('anLapList');
+const anIntercomToggle = document.getElementById('anIntercomToggle');
+const anIntercomVolume = document.getElementById('anIntercomVolume');
+const anInputDeviceSelect = document.getElementById('anInputDeviceSelect');
+const anOutputDeviceSelect = document.getElementById('anOutputDeviceSelect');
+const anPauseMusicDuring = document.getElementById('anPauseMusicDuringAnnouncement');
+const anFadeMusic = document.getElementById('anFadeMusic');
+const announceSoundboardGrid = document.getElementById('announceSoundboardGrid');
+
 let selectedInputDeviceId = '';
 let selectedOutputDeviceId = '';
 
@@ -150,6 +179,11 @@ async function refreshAudioDeviceLists(){
 
     if (selectedInput) inputDeviceSelect.value = selectedInput;
     if (selectedOutput) outputDeviceSelect.value = selectedOutput;
+
+    // Mirror device lists to announce page selects
+    if (anInputDeviceSelect) { anInputDeviceSelect.innerHTML = inputDeviceSelect.innerHTML; anInputDeviceSelect.value = inputDeviceSelect.value; }
+    if (anOutputDeviceSelect) { anOutputDeviceSelect.innerHTML = outputDeviceSelect.innerHTML; anOutputDeviceSelect.value = outputDeviceSelect.value; }
+
     void applyOutputDeviceToAllAudio();
   } catch (err) {
     console.warn('Unable to enumerate devices:', err);
@@ -1939,26 +1973,66 @@ function renderMusicQueue(){
   updateQueueProgress('music');
 }
 
-function renderSoundboardGrid(){
-  if (!soundboardGrid) return;
-  soundboardGrid.innerHTML = '';
-  soundboardSounds.forEach((s,i)=>{
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'soundboard-button';
-    button.textContent = s.name;
-    button.addEventListener('click', ()=>{
-      const sound = new Audio(s.url);
-      const m = parseFloat(masterVolume?.value) || 1;
-      const sv = parseFloat(soundboardVolume?.value) || 1;
-      sound.volume = m * sv;
-      if (selectedOutputDeviceId && typeof sound.setSinkId === 'function'){
-        sound.setSinkId(selectedOutputDeviceId).catch(err=>{ console.warn('Unable to route soundboard audio:', err); });
-      }
-      sound.play().catch(()=>{});
-    });
-    soundboardGrid.appendChild(button);
+function makeSoundboardButton(s) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'soundboard-button';
+  button.textContent = s.name;
+  button.addEventListener('click', ()=>{
+    const sound = new Audio(s.url);
+    const m = parseFloat(masterVolume?.value) || 1;
+    const sv = parseFloat(soundboardVolume?.value) || 1;
+    sound.volume = m * sv;
+    if (selectedOutputDeviceId && typeof sound.setSinkId === 'function'){
+      sound.setSinkId(selectedOutputDeviceId).catch(err=>{ console.warn('Unable to route soundboard audio:', err); });
+    }
+    sound.play().catch(()=>{});
   });
+  return button;
+}
+
+function renderSoundboardGrid(){
+  if (soundboardGrid) {
+    soundboardGrid.innerHTML = '';
+    soundboardSounds.forEach(s => soundboardGrid.appendChild(makeSoundboardButton(s)));
+  }
+  if (announceSoundboardGrid) {
+    announceSoundboardGrid.innerHTML = '';
+    soundboardSounds.forEach(s => announceSoundboardGrid.appendChild(makeSoundboardButton(s)));
+  }
+  updateIntercomSoundCueSelect();
+}
+
+function updateIntercomSoundCueSelect() {
+  const select = document.getElementById('intercomSoundCueSelect');
+  if (!select) return;
+  const prev = select.value;
+  select.innerHTML = '<option value="">None</option>';
+  soundboardSounds.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.name;
+    opt.textContent = s.name;
+    select.appendChild(opt);
+  });
+  if (prev && soundboardSounds.some(s => s.name === prev)) select.value = prev;
+}
+
+function playIntercomSoundCue(callback) {
+  const cueSelect = document.getElementById('intercomSoundCueSelect');
+  const cueName = cueSelect?.value || '';
+  if (!cueName) { if (callback) callback(); return; }
+  const sound = soundboardSounds.find(s => s.name === cueName);
+  if (!sound) { if (callback) callback(); return; }
+  const audio = new Audio(sound.url);
+  const m = parseFloat(masterVolume?.value) || 1;
+  const sv = parseFloat(soundboardVolume?.value) || 1;
+  audio.volume = m * sv;
+  if (selectedOutputDeviceId && typeof audio.setSinkId === 'function') {
+    audio.setSinkId(selectedOutputDeviceId).catch(() => {});
+  }
+  audio.onended = () => { if (callback) callback(); };
+  audio.onerror = () => { if (callback) callback(); };
+  audio.play().catch(() => { if (callback) callback(); });
 }
 
 function playSongAt(i){
@@ -2297,6 +2371,11 @@ function updateButtonStates(){
 
   intercomToggle.classList.toggle('active-announcement', intercomActive);
   intercomToggle.classList.toggle('inactive', !intercomActive);
+  if (anIntercomToggle) {
+    anIntercomToggle.textContent = intercomActive ? 'Stop Announcement' : 'Start Announcement';
+    anIntercomToggle.classList.toggle('active-announcement', intercomActive);
+    anIntercomToggle.classList.toggle('inactive', !intercomActive);
+  }
 }
 
 // MEDIA
@@ -2678,6 +2757,8 @@ async function startIntercom(){
   updateButtonStates();
   // pause/fade music
   handleMusicForAnnouncement(true);
+  // play soundboard cue when toggled on in live mode
+  if (mode === 'live') playIntercomSoundCue(null);
 }
 
 async function stopIntercom(){
@@ -2691,9 +2772,10 @@ async function stopIntercom(){
         const url = URL.createObjectURL(blob);
         const a = new Audio(url);
         a.volume = parseFloat(intercomVolume.value);
-        a.play();
-        // when playback ends, restore music
+        if (selectedOutputDeviceId && typeof a.setSinkId === 'function') a.setSinkId(selectedOutputDeviceId).catch(()=>{});
         a.onended = ()=> handleMusicForAnnouncement(false);
+        // play soundboard cue before the recording
+        playIntercomSoundCue(() => a.play().catch(()=>{}));
       };
       mediaRecorder.stop();
     }
@@ -2923,22 +3005,33 @@ if (mediaTransition && cpMediaTransition) {
 function showClockPane(pane) {
   [clockDisplay, stopwatchDisplay, timerDisplay].forEach(d => d?.classList.add('hidden'));
   [btnClockMode, btnStopwatchMode, btnTimerMode].forEach(b => b?.classList.remove('active'));
-  
+  [anClockDisplay, anStopwatchDisplay, anTimerDisplay].forEach(d => d?.classList.add('hidden'));
+  [anBtnClockMode, anBtnStopwatchMode, anBtnTimerMode].forEach(b => b?.classList.remove('active'));
+
   if (pane === 'clock') {
     clockDisplay?.classList.remove('hidden');
     btnClockMode?.classList.add('active');
+    anClockDisplay?.classList.remove('hidden');
+    anBtnClockMode?.classList.add('active');
   } else if (pane === 'stopwatch') {
     stopwatchDisplay?.classList.remove('hidden');
     btnStopwatchMode?.classList.add('active');
+    anStopwatchDisplay?.classList.remove('hidden');
+    anBtnStopwatchMode?.classList.add('active');
   } else if (pane === 'timer') {
     timerDisplay?.classList.remove('hidden');
     btnTimerMode?.classList.add('active');
+    anTimerDisplay?.classList.remove('hidden');
+    anBtnTimerMode?.classList.add('active');
   }
 }
 
 btnClockMode?.addEventListener('click', () => showClockPane('clock'));
 btnStopwatchMode?.addEventListener('click', () => showClockPane('stopwatch'));
 btnTimerMode?.addEventListener('click', () => showClockPane('timer'));
+anBtnClockMode?.addEventListener('click', () => showClockPane('clock'));
+anBtnStopwatchMode?.addEventListener('click', () => showClockPane('stopwatch'));
+anBtnTimerMode?.addEventListener('click', () => showClockPane('timer'));
 
 // Stopwatch Logic
 let stopwatchRunning = false;
@@ -2955,20 +3048,24 @@ function formatStopwatchMs(ms) {
 }
 
 function updateStopwatchDisplay() {
-  if (!stopwatchTime) return;
-  stopwatchTime.textContent = formatStopwatchMs(stopwatchTimeMs);
+  const text = formatStopwatchMs(stopwatchTimeMs);
+  if (stopwatchTime) stopwatchTime.textContent = text;
+  if (anStopwatchTimeEl) anStopwatchTimeEl.textContent = text;
 }
 
 function renderLaps() {
-  const lapList = document.getElementById('lapList');
-  if (!lapList) return;
-  lapList.innerHTML = '';
-  lapTimes.forEach((ms, i) => {
-    const div = document.createElement('div');
-    div.className = 'lap-item';
-    div.textContent = `Lap ${i + 1}  ${formatStopwatchMs(ms)}`;
-    lapList.appendChild(div);
-  });
+  function fillLapList(el) {
+    if (!el) return;
+    el.innerHTML = '';
+    lapTimes.forEach((ms, i) => {
+      const div = document.createElement('div');
+      div.className = 'lap-item';
+      div.textContent = `Lap ${i + 1}  ${formatStopwatchMs(ms)}`;
+      el.appendChild(div);
+    });
+  }
+  fillLapList(document.getElementById('lapList'));
+  fillLapList(anLapList);
 }
 
 btnStopwatchStart?.addEventListener('click', () => {
@@ -3019,17 +3116,20 @@ function readTimerInputs() {
 }
 
 function updateTimerDisplay() {
-  if (!timerTime) return;
   const min = Math.floor(timerSecondsRemaining / 60).toString().padStart(2, '0');
   const sec = (timerSecondsRemaining % 60).toString().padStart(2, '0');
-  timerTime.textContent = `${min}:${sec}`;
+  const text = `${min}:${sec}`;
+  if (timerTime) timerTime.textContent = text;
+  if (anTimerTimeEl) anTimerTimeEl.textContent = text;
 }
 
 // Live-update display when user edits inputs while timer is stopped
 timerInputMin?.addEventListener('input', () => {
+  if (anTimerInputMin) anTimerInputMin.value = timerInputMin.value;
   if (!timerRunning) { timerSecondsRemaining = readTimerInputs(); updateTimerDisplay(); stopFlashTimerAlert(); }
 });
 timerInputSec?.addEventListener('input', () => {
+  if (anTimerInputSec) anTimerInputSec.value = timerInputSec.value;
   if (!timerRunning) { timerSecondsRemaining = readTimerInputs(); updateTimerDisplay(); stopFlashTimerAlert(); }
 });
 
@@ -3072,12 +3172,172 @@ btnTimerReset?.addEventListener('click', () => {
 
 function flashTimerAlert() {
   stopFlashTimerAlert();
-  if (!stopwatchPanel) return;
-  stopwatchPanel.classList.add('timer-alarm');
+  stopwatchPanel?.classList.add('timer-alarm');
+  anStopwatchPanel?.classList.add('timer-alarm');
 }
 
 function stopFlashTimerAlert() {
-  if (stopwatchPanel) {
-    stopwatchPanel.classList.remove('timer-alarm');
+  stopwatchPanel?.classList.remove('timer-alarm');
+  anStopwatchPanel?.classList.remove('timer-alarm');
+}
+
+// ===== ANNOUNCE PAGE WIRING =====
+
+// --- Intercom sync (announce page ↔ control panel) ---
+// Mode radios: announce → CP
+document.querySelectorAll('input[name="an-mode"]').forEach(r => {
+  r.addEventListener('change', () => {
+    document.querySelectorAll('input[name="mode"]').forEach(m => { m.checked = m.value === r.value; });
+  });
+});
+// Mode radios: CP → announce
+document.querySelectorAll('input[name="mode"]').forEach(r => {
+  r.addEventListener('change', () => {
+    document.querySelectorAll('input[name="an-mode"]').forEach(m => { m.checked = m.value === r.value; });
+  });
+});
+
+// Volume sync
+anIntercomVolume?.addEventListener('input', () => {
+  if (intercomVolume) intercomVolume.value = anIntercomVolume.value;
+  if (intercomAudioEl) intercomAudioEl.volume = parseFloat(anIntercomVolume.value);
+});
+intercomVolume?.addEventListener('input', () => {
+  if (anIntercomVolume) anIntercomVolume.value = intercomVolume.value;
+});
+
+// Pause/fade checkboxes sync
+anPauseMusicDuring?.addEventListener('change', () => { if (pauseMusicDuring) pauseMusicDuring.checked = anPauseMusicDuring.checked; });
+pauseMusicDuring?.addEventListener('change', () => { if (anPauseMusicDuring) anPauseMusicDuring.checked = pauseMusicDuring.checked; });
+anFadeMusic?.addEventListener('change', () => { if (fadeMusic) fadeMusic.checked = anFadeMusic.checked; });
+fadeMusic?.addEventListener('change', () => { if (anFadeMusic) anFadeMusic.checked = fadeMusic.checked; });
+
+// Device selects sync: announce → CP
+anInputDeviceSelect?.addEventListener('change', () => {
+  if (inputDeviceSelect) { inputDeviceSelect.value = anInputDeviceSelect.value; inputDeviceSelect.dispatchEvent(new Event('change')); }
+});
+anOutputDeviceSelect?.addEventListener('change', () => {
+  if (outputDeviceSelect) { outputDeviceSelect.value = anOutputDeviceSelect.value; outputDeviceSelect.dispatchEvent(new Event('change')); }
+});
+// Device selects: CP → announce (update in refreshAudioDeviceLists already handles initial population)
+inputDeviceSelect?.addEventListener('change', () => {
+  if (anInputDeviceSelect && anInputDeviceSelect.value !== inputDeviceSelect.value) anInputDeviceSelect.value = inputDeviceSelect.value;
+});
+outputDeviceSelect?.addEventListener('change', () => {
+  if (anOutputDeviceSelect && anOutputDeviceSelect.value !== outputDeviceSelect.value) anOutputDeviceSelect.value = outputDeviceSelect.value;
+});
+
+// Announce page intercom toggle
+anIntercomToggle?.addEventListener('click', () => {
+  // Sync mode from announce page to CP before starting
+  const anMode = document.querySelector('input[name="an-mode"]:checked')?.value;
+  if (anMode) document.querySelectorAll('input[name="mode"]').forEach(m => { m.checked = m.value === anMode; });
+  if (!intercomActive) startIntercom(); else stopIntercom();
+});
+
+// --- Clock proxy buttons (announce → main, then main update functions update both displays) ---
+anBtnStopwatchStart?.addEventListener('click', () => btnStopwatchStart?.click());
+anBtnStopwatchLap?.addEventListener('click', () => btnStopwatchLap?.click());
+anBtnStopwatchReset?.addEventListener('click', () => btnStopwatchReset?.click());
+anBtnTimerStart?.addEventListener('click', () => btnTimerStart?.click());
+anBtnTimerReset?.addEventListener('click', () => btnTimerReset?.click());
+
+// Sync announce timer inputs → main inputs
+anTimerInputMin?.addEventListener('input', () => {
+  if (timerInputMin) timerInputMin.value = anTimerInputMin.value;
+  if (!timerRunning) { timerSecondsRemaining = readTimerInputs(); updateTimerDisplay(); stopFlashTimerAlert(); }
+});
+anTimerInputSec?.addEventListener('input', () => {
+  if (timerInputSec) timerInputSec.value = anTimerInputSec.value;
+  if (!timerRunning) { timerSecondsRemaining = readTimerInputs(); updateTimerDisplay(); stopFlashTimerAlert(); }
+});
+
+// Sync announce clock button text/disabled states from main buttons (100ms poll)
+setInterval(() => {
+  if (anBtnStopwatchStart && btnStopwatchStart) anBtnStopwatchStart.textContent = btnStopwatchStart.textContent;
+  if (anBtnStopwatchLap && btnStopwatchLap) anBtnStopwatchLap.disabled = btnStopwatchLap.disabled;
+  if (anBtnTimerStart && btnTimerStart) anBtnTimerStart.textContent = btnTimerStart.textContent;
+}, 100);
+
+// --- Announce page soundboard ---
+const announceSoundboardFiles = document.getElementById('announceSoundboardFiles');
+const announceSoundboardVolume = document.getElementById('announceSoundboardVolume');
+
+announceSoundboardFiles?.addEventListener('change', e => {
+  Array.from(e.target.files).forEach(f => {
+    const url = URL.createObjectURL(f);
+    const item = {name: f.name, url, type: f.type, file: f, durationFormatted: 'Loading...'};
+    soundboardSounds.push(item);
+    loadFileMetadata(item, renderSoundboardGrid);
+  });
+  renderSoundboardGrid();
+});
+
+// Volume sync: announce ↔ audio page
+announceSoundboardVolume?.addEventListener('input', () => {
+  if (soundboardVolume) soundboardVolume.value = announceSoundboardVolume.value;
+});
+soundboardVolume?.addEventListener('input', () => {
+  if (announceSoundboardVolume) announceSoundboardVolume.value = soundboardVolume.value;
+});
+
+// --- Typed Announcement ---
+let announcementLingerTimeout = null;
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function sendAnnouncement(text, textColor, bgColor, bgAlpha, lingerSec) {
+  if (announcementLingerTimeout) { clearTimeout(announcementLingerTimeout); announcementLingerTimeout = null; }
+  if (!displayWindow || displayWindow.closed) openDisplayWindow();
+  const bgRgba = hexToRgba(bgColor, parseFloat(bgAlpha));
+  const msg = {type: 'announcement', text, textColor, bgColor: bgRgba};
+  setTimeout(() => { if (displayWindow && !displayWindow.closed) displayWindow.postMessage(msg, '*'); }, 200);
+  const linger = parseFloat(lingerSec) || 0;
+  if (linger > 0) {
+    announcementLingerTimeout = setTimeout(() => clearAnnouncement(), linger * 1000 + 200);
   }
 }
+
+function clearAnnouncement() {
+  if (announcementLingerTimeout) { clearTimeout(announcementLingerTimeout); announcementLingerTimeout = null; }
+  if (!displayWindow || displayWindow.closed) return;
+  displayWindow.postMessage({type: 'clearAnnouncement'}, '*');
+}
+
+document.getElementById('announcementBgAlpha')?.addEventListener('input', function() {
+  const pct = Math.round(parseFloat(this.value) * 100);
+  const label = document.getElementById('announcementBgAlphaVal');
+  if (label) label.textContent = pct + '%';
+});
+
+document.getElementById('showAnnouncementBtn')?.addEventListener('click', () => {
+  const text = document.getElementById('announcementTextInput')?.value?.trim() || '';
+  if (!text) return;
+  const textColor = document.getElementById('announcementTextColor')?.value || '#ffffff';
+  const bgColor = document.getElementById('announcementBgColor')?.value || '#000000';
+  const bgAlpha = document.getElementById('announcementBgAlpha')?.value || '0.85';
+  const linger = document.getElementById('announcementLinger')?.value || '0';
+  sendAnnouncement(text, textColor, bgColor, bgAlpha, linger);
+});
+
+document.getElementById('clearAnnouncementBtn')?.addEventListener('click', clearAnnouncement);
+
+// --- Initialize announce page state from CP ---
+(function initAnnouncePage() {
+  // Sync intercom controls
+  if (anIntercomVolume && intercomVolume) anIntercomVolume.value = intercomVolume.value;
+  if (anPauseMusicDuring && pauseMusicDuring) anPauseMusicDuring.checked = pauseMusicDuring.checked;
+  if (anFadeMusic && fadeMusic) anFadeMusic.checked = fadeMusic.checked;
+  const cpMode = document.querySelector('input[name="mode"]:checked')?.value;
+  if (cpMode) document.querySelectorAll('input[name="an-mode"]').forEach(r => { r.checked = r.value === cpMode; });
+  // Sync timer inputs
+  if (anTimerInputMin && timerInputMin) anTimerInputMin.value = timerInputMin.value;
+  if (anTimerInputSec && timerInputSec) anTimerInputSec.value = timerInputSec.value;
+  // Sync soundboard volume
+  if (announceSoundboardVolume && soundboardVolume) announceSoundboardVolume.value = soundboardVolume.value;
+})();
